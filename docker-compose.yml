@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clanada
+      POSTGRES_PASSWORD: clanada
+      POSTGRES_DB: clanada
+    ports:
+      - "5432:5432"
+    volumes:
+      - clanada-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  clanada-postgres-data:
