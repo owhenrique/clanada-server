@@ -1,5 +1,6 @@
 import { flattenPlayers } from "../rules/flatten";
 import { shuffle } from "../rules/shuffle";
+import { fullTeamCount } from "../rules/formation";
 import { recordingIdFactory } from "../id-factory";
 import { requireState } from "../require-state";
 import type { MatchState } from "../types";
@@ -12,7 +13,7 @@ export function decideReshuffle(
 ): DecideResult {
   const current = requireState(state);
   const order = shuffle(flattenPlayers(current), ctx.random);
-  const fullTeams = Math.floor(order.length / current.config.teamSize);
+  const fullTeams = fullTeamCount(order.length, current.config.teamSize);
   const factory = recordingIdFactory(ctx.nextId);
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
