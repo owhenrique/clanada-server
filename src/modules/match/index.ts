@@ -24,3 +24,5 @@ export { applyEvent } from "./apply-event";
 export { replay } from "./replay";
 export { assertValidState, InvariantViolation } from "./invariants";
 export type { InvariantRule } from "./invariants";
+export { decide } from "./commands";
+export type { Command, CommandContext, DecideResult } from "./commands/types";
