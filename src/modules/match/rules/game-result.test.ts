@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formInitialState } from "./formation";
 import { applyGameResult } from "./game-result";
-import { playerJoins } from "./join";
 import type { Player, MatchState } from "../types";
 
 function makePlayers(count: number): Player[] {
@@ -115,10 +114,8 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("prefers a never-used bib over recycling the one the losing team just wore", () => {
-    let state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10 }, teamId);
-    for (const p of [mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")]) {
-      state = playerJoins(state, p);
-    }
+    const base = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10 }, teamId);
+    const state = { ...base, queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")] };
     expect(state.queue).toHaveLength(5);
 
     const next = applyGameResult(state, "t0", idGen());
@@ -131,10 +128,8 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("recycles the just-freed bib only once every never-used color is taken", () => {
-    let state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
-    for (const p of [mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")]) {
-      state = playerJoins(state, p);
-    }
+    const base = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = { ...base, queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")] };
     expect(state.queue).toHaveLength(3);
 
     const next = applyGameResult(state, "t0", idGen());

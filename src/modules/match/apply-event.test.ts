@@ -141,7 +141,7 @@ describe("apply-event: um teste por evento", () => {
     expect(next.queue.map((p) => p.id)).toEqual(["p10", "p11", "pNovo"]);
   });
 
-  it("PLAYER_LEFT with fallback none reproduces the ported (pre-S4) donor path", () => {
+  it("PLAYER_LEFT with fallback none uses the circular donor search (S4)", () => {
     const players = makePlayers(15);
     const state = applyEvent(null, created(players, ["t0", "t1", "t2"]));
     const next = applyEvent(state, {
@@ -150,27 +150,35 @@ describe("apply-event: um teste por evento", () => {
       fallback: "none",
       newTeamIds: [],
     });
-    expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2"]);
-    expect(next.queue.map((p) => p.id)).toEqual(["p6", "p7", "p8", "p9"]);
+    expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
+    expect(next.queue.map((p) => p.id)).toEqual(["p11", "p12", "p13", "p14"]);
   });
 
-  it("PLAYER_LEFT with fallback reduce-team-size is not implemented yet (S4)", () => {
+  it("PLAYER_LEFT with fallback reduce-team-size shrinks teamSize (S4)", () => {
     const state = baseState();
-    expect(() =>
-      applyEvent(state, {
-        type: "PLAYER_LEFT",
-        playerId: "p0",
-        fallback: "reduce-team-size",
-        newTeamIds: [],
-      }),
-    ).toThrow(/not implemented/);
+    const next = applyEvent(state, {
+      type: "PLAYER_LEFT",
+      playerId: "p0",
+      fallback: "reduce-team-size",
+      newTeamIds: [],
+    });
+    expect(next.config.teamSize).toBe(4);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4"]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8"]);
+    expect(next.queue.map((p) => p.id)).toEqual(["p10", "p11", "p9"]);
   });
 
-  it("TEAM_SIZE_CHANGED is not implemented yet (S4)", () => {
+  it("TEAM_SIZE_CHANGED reduces the team size and compacts the released players (S4)", () => {
     const state = baseState();
-    expect(() =>
-      applyEvent(state, { type: "TEAM_SIZE_CHANGED", teamSize: 4, newTeamIds: [] }),
-    ).toThrow(/not implemented/);
+    const next = applyEvent(state, {
+      type: "TEAM_SIZE_CHANGED",
+      teamSize: 4,
+      newTeamIds: ["tNovo"],
+    });
+    expect(next.config.teamSize).toBe(4);
+    expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "tNovo"]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p10", "p11", "p4", "p9"]);
+    expect(next.queue).toEqual([]);
   });
 
   it("MATCH_ENDED switches the status to ENDED", () => {

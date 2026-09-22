@@ -16,7 +16,8 @@ export type Command =
   | { type: "draw" }
   | { type: "penalties"; loserTeamId: string }
   | { type: "join"; name: string }
-  | { type: "leave"; playerId: string }
+  | { type: "leave"; playerId: string; fallback?: "reduce-team-size" }
+  | { type: "changeTeamSize"; teamSize: number }
   | { type: "end" };
 
 export type DecideResult = { event: Event } | { penaltiesRequired: true };
