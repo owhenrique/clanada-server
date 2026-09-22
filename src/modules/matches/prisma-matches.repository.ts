@@ -146,7 +146,7 @@ export class PrismaMatchesRepository extends MatchesRepository {
         snapshot: toInputJson(input.snapshot),
         status: input.snapshot.status,
       });
-      await tx.matchEvent.update({ where: { id: target.id }, data: { revokedAt: new Date() } });
+      await tx.matchEvent.update({ where: { matchId_seq: { matchId: target.matchId, seq: target.seq } }, data: { revokedAt: new Date() } });
       const match = await tx.match.findUniqueOrThrow({ where: { id: input.matchId } });
       return toStoredMatch(match);
     });
