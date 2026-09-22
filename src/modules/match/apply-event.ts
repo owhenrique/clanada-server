@@ -70,7 +70,7 @@ function handlePlayerJoined(
   state: MatchState | null,
   event: Extract<Event, { type: "PLAYER_JOINED" }>,
 ): MatchState {
-  return playerJoins(requireState(state), event.player);
+  return playerJoins(requireState(state), event.player, idsFrom(event.newTeamIds));
 }
 
 function handlePlayerLeft(
@@ -92,7 +92,15 @@ function handleTeamSizeChanged(
   state: MatchState | null,
   event: Extract<Event, { type: "TEAM_SIZE_CHANGED" }>,
 ): MatchState {
-  return changeTeamSize(requireState(state), event.teamSize, idsFrom(event.newTeamIds));
+  const result = changeTeamSize(
+    requireState(state),
+    event.teamSize,
+    idsFrom(event.newTeamIds),
+  );
+  if (result === null) {
+    throw new Error("invariant: replaying TEAM_SIZE_CHANGED must always succeed");
+  }
+  return result;
 }
 
 function handleMatchEnded(state: MatchState | null): MatchState {

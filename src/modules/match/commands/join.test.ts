@@ -34,3 +34,31 @@ describe("CEN-14: decideJoin", () => {
     });
   });
 });
+
+describe("CEN-6: decideJoin completing the queue", () => {
+  it("CEN-6: records the new team id when the join compacts the queue, with no bib once B is already in use", () => {
+    const ids = ["pNovo", "tNovo"];
+    let index = 0;
+    const nextId = (): string => {
+      const id = ids[index];
+      if (id === undefined) {
+        throw new Error("ran out of ids");
+      }
+      index++;
+      return id;
+    };
+    const state = {
+      ...formInitialState(
+        makePlayers(14),
+        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+        (i) => `t${i}`,
+      ),
+      status: "ACTIVE" as const,
+    };
+    const result = decideJoin(state, { type: "join", name: "Novo" }, { random: () => 0, nextId, timerRunning: false });
+    if (!("event" in result) || result.event.type !== "PLAYER_JOINED") {
+      throw new Error("expected a PLAYER_JOINED event");
+    }
+    expect(result.event.newTeamIds).toEqual(["tNovo"]);
+  });
+});

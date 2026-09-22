@@ -4,8 +4,11 @@ import { applyEvent } from "./apply-event";
 import { replay } from "./replay";
 import { assertValidState } from "./invariants";
 import { flattenPlayers } from "./rules/flatten";
+import { locatePlayer } from "./rules/swap";
+import { findDonorIndex } from "./rules/leave";
+import { DomainError } from "../../shared/errors/domain-error";
 import type { MatchState, Player } from "./types";
-import type { Command } from "./commands/types";
+import type { Command, DecideResult } from "./commands/types";
 import type { Event } from "./events";
 
 function mulberry32(seed: number): () => number {
@@ -24,10 +27,10 @@ function idFactory(prefix: string): () => string {
   return () => `${prefix}${n++}`;
 }
 
-type ActiveOption = "swap" | "win" | "draw" | "join" | "leave";
+type ActiveOption = "swap" | "win" | "draw" | "join" | "leave" | "changeTeamSize";
 
 function activeOptions(state: MatchState): ActiveOption[] {
-  const options: ActiveOption[] = ["swap", "win", "draw"];
+  const options: ActiveOption[] = ["swap", "win", "draw", "changeTeamSize"];
   if (state.queue.length + 1 < state.config.teamSize) {
     options.push("join");
   }
@@ -73,13 +76,23 @@ function pickCommand(state: MatchState, rng: () => number): Command {
       return { type: "join", name: `Novo${Math.floor(rng() * 1_000_000)}` };
     case "leave": {
       const player = pickPlayer(state, rng);
-      return { type: "leave", playerId: player.id };
+      const location = locatePlayer(state, player.id);
+      const needsFallback =
+        location !== null &&
+        location.kind === "team" &&
+        state.queue.length === 0 &&
+        findDonorIndex(state.teams.length, location.teamIndex) === null;
+      return needsFallback
+        ? { type: "leave", playerId: player.id, fallback: "reduce-team-size" }
+        : { type: "leave", playerId: player.id };
     }
+    case "changeTeamSize":
+      return { type: "changeTeamSize", teamSize: 1 + Math.floor(rng() * 8) };
   }
 }
 
-describe("CEN-28: property — 500 valid random commands never break an invariant", () => {
-  it("keeps every invariant valid and matches an incremental replay", () => {
+describe("CEN-28 (S3) / CEN-14 (S4): property — 500 valid random commands never break an invariant", () => {
+  it("CEN-28/CEN-14: keeps every invariant valid and matches an incremental replay, including leave fallbacks and team-size changes", () => {
     const rng = mulberry32(42);
     const ctx = { random: rng, nextId: idFactory("id"), timerRunning: false };
 
@@ -102,7 +115,15 @@ describe("CEN-28: property — 500 valid random commands never break an invarian
 
     for (let step = 0; step < 500; step++) {
       const command = pickCommand(state, rng);
-      const result = decide(state, command, ctx);
+      let result: DecideResult;
+      try {
+        result = decide(state, command, ctx);
+      } catch (error) {
+        if (error instanceof DomainError && error.code === "TEAM_SIZE_NOT_ALLOWED") {
+          continue;
+        }
+        throw error;
+      }
       if ("penaltiesRequired" in result) {
         continue;
       }

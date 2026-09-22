@@ -10,6 +10,7 @@ import { decideDraw } from "./draw";
 import { decidePenalties } from "./penalties";
 import { decideJoin } from "./join";
 import { decideLeave } from "./leave";
+import { decideChangeTeamSize } from "./change-team-size";
 import { decideEnd } from "./end";
 
 type Handler = (
@@ -28,6 +29,7 @@ const handlers: Record<Command["type"], Handler> = {
   penalties: decidePenalties as Handler,
   join: decideJoin as Handler,
   leave: decideLeave as Handler,
+  changeTeamSize: decideChangeTeamSize as Handler,
   end: decideEnd as Handler,
 };
 
@@ -41,6 +43,7 @@ const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   penalties: ["ACTIVE"],
   join: ["ACTIVE"],
   leave: ["ACTIVE"],
+  changeTeamSize: ["ACTIVE"],
   end: ["ACTIVE"],
 };
 
