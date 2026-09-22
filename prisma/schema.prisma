@@ -16,7 +16,7 @@ enum MatchStatus {
 }
 
 model Match {
-  id             String       @id @default(uuid())
+  id             String       @id @default(uuid()) @db.Uuid
   code           String       @unique
   status         MatchStatus
   version        Int
@@ -30,7 +30,7 @@ model Match {
 
 model MatchEvent {
   id        BigInt    @id @default(autoincrement())
-  matchId   String
+  matchId   String    @db.Uuid
   match     Match     @relation(fields: [matchId], references: [id])
   seq       Int
   type      String

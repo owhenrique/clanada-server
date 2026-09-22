@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DomainError } from "../../shared/errors/domain-error";
 import {
   applyEvent,
   decide,
@@ -126,7 +125,7 @@ export function runMatchesRepositoryContract(
           events: [started],
           snapshot: activeSnapshot,
         }),
-      ).rejects.toThrow(DomainError);
+      ).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
 
       const found = await repository.findByCode("CEN4CODE");
       expect(found?.version).toBe(1);
@@ -249,7 +248,7 @@ export function runMatchesRepositoryContract(
 
       await expect(
         repository.revokeLast({ matchId: created.id, expectedVersion: created.version, snapshot }),
-      ).rejects.toThrow(DomainError);
+      ).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
 
       const found = await repository.findByCode("CEN8CODE");
       expect(found?.version).toBe(1);

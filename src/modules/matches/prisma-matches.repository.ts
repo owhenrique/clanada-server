@@ -18,6 +18,23 @@ function toInputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
+type MatchClient = PrismaService | Prisma.TransactionClient;
+
+async function applyVersionGuardedUpdate(
+  client: MatchClient,
+  matchId: string,
+  expectedVersion: number,
+  data: Prisma.MatchUpdateManyMutationInput,
+): Promise<void> {
+  const guard = await client.match.updateMany({
+    where: { id: matchId, version: expectedVersion },
+    data: { version: { increment: 1 }, ...data },
+  });
+  if (guard.count === 0) {
+    throw new DomainError("VERSION_CONFLICT");
+  }
+}
+
 function toStoredMatch(row: MatchRow): StoredMatch {
   return {
     id: row.id,
@@ -83,20 +100,13 @@ export class PrismaMatchesRepository extends MatchesRepository {
 
   async append(input: AppendInput): Promise<StoredMatch> {
     return this.prisma.$transaction(async (tx) => {
-      const guard = await tx.match.updateMany({
-        where: { id: input.matchId, version: input.expectedVersion },
-        data: {
-          version: { increment: 1 },
-          snapshot: toInputJson(input.snapshot),
-          status: input.snapshot.status,
-          ...(input.timer !== undefined
-            ? { timerStartedAt: input.timer.startedAt, timerElapsedMs: input.timer.elapsedMs }
-            : {}),
-        },
+      await applyVersionGuardedUpdate(tx, input.matchId, input.expectedVersion, {
+        snapshot: toInputJson(input.snapshot),
+        status: input.snapshot.status,
+        ...(input.timer !== undefined
+          ? { timerStartedAt: input.timer.startedAt, timerElapsedMs: input.timer.elapsedMs }
+          : {}),
       });
-      if (guard.count === 0) {
-        throw new DomainError("VERSION_CONFLICT");
-      }
       const last = await tx.matchEvent.findFirst({
         where: { matchId: input.matchId },
         orderBy: { seq: "desc" },
@@ -132,17 +142,10 @@ export class PrismaMatchesRepository extends MatchesRepository {
       if (target === undefined) {
         throw new DomainError("NOTHING_TO_UNDO");
       }
-      const guard = await tx.match.updateMany({
-        where: { id: input.matchId, version: input.expectedVersion },
-        data: {
-          version: { increment: 1 },
-          snapshot: toInputJson(input.snapshot),
-          status: input.snapshot.status,
-        },
+      await applyVersionGuardedUpdate(tx, input.matchId, input.expectedVersion, {
+        snapshot: toInputJson(input.snapshot),
+        status: input.snapshot.status,
       });
-      if (guard.count === 0) {
-        throw new DomainError("VERSION_CONFLICT");
-      }
       await tx.matchEvent.update({ where: { id: target.id }, data: { revokedAt: new Date() } });
       const match = await tx.match.findUniqueOrThrow({ where: { id: input.matchId } });
       return toStoredMatch(match);
@@ -150,17 +153,10 @@ export class PrismaMatchesRepository extends MatchesRepository {
   }
 
   async updateTimer(input: UpdateTimerInput): Promise<StoredMatch> {
-    const guard = await this.prisma.match.updateMany({
-      where: { id: input.matchId, version: input.expectedVersion },
-      data: {
-        version: { increment: 1 },
-        timerStartedAt: input.timer.startedAt,
-        timerElapsedMs: input.timer.elapsedMs,
-      },
+    await applyVersionGuardedUpdate(this.prisma, input.matchId, input.expectedVersion, {
+      timerStartedAt: input.timer.startedAt,
+      timerElapsedMs: input.timer.elapsedMs,
     });
-    if (guard.count === 0) {
-      throw new DomainError("VERSION_CONFLICT");
-    }
     const match = await this.prisma.match.findUniqueOrThrow({ where: { id: input.matchId } });
     return toStoredMatch(match);
   }
