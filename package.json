@@ -12,7 +12,7 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "openapi": "nest build && node dist/openapi.js",
+    "openapi": "nest build && node dist/infra/swagger/generate-openapi.js",
     "db:migrate": "prisma migrate dev"
   },
   "dependencies": {

@@ -31,7 +31,7 @@ npm run dev                # http://localhost:3001/api
 | `npm run test:e2e` | Testes e2e com Testcontainers (requer Docker). |
 | `npm run lint` | ESLint. |
 | `npm run typecheck` | `tsc --noEmit`. |
-| `npm run openapi` | Gera `openapi.json` a partir dos DTOs/rotas, sem subir o servidor. |
+| `npm run openapi` | Gera `src/infra/swagger/openapi.json` a partir dos DTOs/rotas, sem subir o servidor. |
 | `npm run db:migrate` | Aplica migrations do Prisma. |
 
 ## Estrutura
@@ -41,9 +41,11 @@ prisma/schema.prisma      # datasource + generator (modelos entram conforme o do
 src/
   main.ts                 # bootstrap da aplicação (createApp) + entrypoint
   app.module.ts
-  config/                 # schema zod das variáveis de ambiente
-  health/                 # GET /api/health
-  shared/                 # transversal: database, ports, errors, logging, http
+  infra/                  # conversa com o mundo de fora: config, prisma, swagger, logging
+  shared/                 # utilitários de código, sem I/O: errors, http, ports
+  modules/
+    match/                # domínio puro (regras da pelada)
+    health/                # GET /api/health
   generated/prisma/       # client Prisma gerado (não versionado)
 test/                     # testes e2e (Testcontainers)
 ```

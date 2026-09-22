@@ -4,7 +4,7 @@ import type { Response } from "express";
 import { DomainError, type DomainErrorCode } from "./domain-error";
 
 const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
-  SESSION_NOT_FOUND: HttpStatus.NOT_FOUND,
+  MATCH_NOT_FOUND: HttpStatus.NOT_FOUND,
   VERSION_CONFLICT: HttpStatus.PRECONDITION_FAILED,
   INVALID_STATUS: HttpStatus.UNPROCESSABLE_ENTITY,
   DUPLICATE_PLAYER_NAMES: HttpStatus.UNPROCESSABLE_ENTITY,

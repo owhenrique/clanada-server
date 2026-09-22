@@ -4,8 +4,8 @@ import { NestFactory } from "@nestjs/core";
 import { SwaggerModule } from "@nestjs/swagger";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
-import type { Env } from "./config/env.schema";
-import { buildOpenApiDocument } from "./openapi-document";
+import type { Env } from "./infra/config/env.schema";
+import { buildOpenApiDocument } from "./infra/swagger/openapi-document";
 import { DomainExceptionFilter } from "./shared/errors/domain-exception.filter";
 
 export async function createApp(): Promise<INestApplication> {

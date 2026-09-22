@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { envSchema } from "./config/env.schema";
-import { HealthModule } from "./health/health.module";
-import { PrismaModule } from "./shared/database/prisma.module";
-import { LoggingModule } from "./shared/logging/logging.module";
-import { SharedModule } from "./shared/ports/shared.module";
+import { envSchema } from "./infra/config/env.schema";
+import { HealthModule } from "./modules/health/health.module";
+import { PrismaModule } from "./infra/prisma/prisma.module";
+import { LoggingModule } from "./infra/logging/logging.module";
+import { PortsModule } from "./shared/ports/ports.module";
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { SharedModule } from "./shared/ports/shared.module";
       validate: (raw: Record<string, unknown>) => envSchema.parse(raw),
     }),
     LoggingModule,
-    SharedModule,
+    PortsModule,
     PrismaModule,
     HealthModule,
   ],

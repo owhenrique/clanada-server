@@ -95,7 +95,7 @@ describe("CEN-1: formInitialState", () => {
   it("assigns team ids from the factory and starts streaks at zero", () => {
     const state = formInitialState(makePlayers(10), 5, ["verde", "vermelho"], teamId);
     expect(state.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
-    expect(state.teams.every((t) => t.matchStreak === 0)).toBe(true);
+    expect(state.teams.every((t) => t.gameStreak === 0)).toBe(true);
   });
 
   it("keeps the team size and colors in the state", () => {

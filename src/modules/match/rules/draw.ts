@@ -1,10 +1,10 @@
-import type { Team, PeladaState, DrawOutcome } from "../types";
+import type { Team, MatchState, DrawOutcome } from "../types";
 import { compactQueue } from "./queue";
 import { assignBibs, usedColors } from "./bibs";
-import { onFieldTeams } from "./match-result";
+import { onFieldTeams } from "./game-result";
 
 export function resolveDraw(
-  state: PeladaState,
+  state: MatchState,
   rng: () => number,
   createTeamId: () => string,
 ): DrawOutcome {

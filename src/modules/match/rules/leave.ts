@@ -1,8 +1,8 @@
-import type { PeladaState } from "../types";
+import type { MatchState } from "../types";
 import { assignBibs, usedColors } from "./bibs";
 import { at } from "./queue";
 
-export function playerLeaves(state: PeladaState, playerId: string): PeladaState {
+export function playerLeaves(state: MatchState, playerId: string): MatchState {
   if (state.queue.some((player) => player.id === playerId)) {
     return {
       ...state,

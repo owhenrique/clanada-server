@@ -1,8 +1,8 @@
-import type { Team, Player, PeladaState } from "../types";
+import type { Team, Player, MatchState } from "../types";
 import { compactQueue } from "./queue";
 import { assignBibs, usedColors } from "./bibs";
 
-export function onFieldTeams(state: PeladaState): [Team, Team] {
+export function onFieldTeams(state: MatchState): [Team, Team] {
   const [first, second] = state.teams;
   if (first === undefined || second === undefined) {
     throw new Error("invariant: onFieldTeams requires at least two teams");
@@ -10,22 +10,22 @@ export function onFieldTeams(state: PeladaState): [Team, Team] {
   return [first, second];
 }
 
-export function applyResult(
-  state: PeladaState,
+export function applyGameResult(
+  state: MatchState,
   loserId: string,
   createTeamId: () => string,
-): PeladaState {
+): MatchState {
   const [first, second] = onFieldTeams(state);
   const loser = first.id === loserId ? first : second;
   const winner = first.id === loserId ? second : first;
-  const winnerAfter: Team = { ...winner, matchStreak: winner.matchStreak + 1 };
+  const winnerAfter: Team = { ...winner, gameStreak: winner.gameStreak + 1 };
   const waiting = state.teams.slice(2);
 
   let teams: Team[];
   let queue: Player[];
 
   if (state.queue.length === 0) {
-    const loserAfter: Team = { ...loser, matchStreak: 0 };
+    const loserAfter: Team = { ...loser, gameStreak: 0 };
     teams =
       waiting.length > 0
         ? [winnerAfter, ...waiting, loserAfter]

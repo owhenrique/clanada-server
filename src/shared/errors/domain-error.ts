@@ -1,5 +1,5 @@
 export type DomainErrorCode =
-  | "SESSION_NOT_FOUND"
+  | "MATCH_NOT_FOUND"
   | "VERSION_CONFLICT"
   | "INVALID_STATUS"
   | "DUPLICATE_PLAYER_NAMES"

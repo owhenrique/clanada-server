@@ -12,4 +12,4 @@ import { MathRandomSource, RandomSource } from "./random-source";
   ],
   exports: [Clock, IdGenerator, RandomSource],
 })
-export class SharedModule {}
+export class PortsModule {}

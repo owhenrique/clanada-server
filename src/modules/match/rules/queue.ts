@@ -21,7 +21,7 @@ export function compactQueue(
       id: createTeamId(),
       players: remaining.slice(0, teamSize),
       color: null,
-      matchStreak: 0,
+      gameStreak: 0,
     });
     remaining = remaining.slice(teamSize);
   }

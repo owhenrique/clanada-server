@@ -1,21 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { resolveDraw } from "./draw";
-import type { Player, PeladaState, Team } from "../types";
+import type { Player, MatchState, Team } from "../types";
 
 function mkPlayer(id: string): Player {
   return { id, name: id };
 }
 
-function mkTeam(id: string, color: string | null, matchStreak: number): Team {
+function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
-    matchStreak,
+    gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
 }
 
-function mkState(teams: Team[], queue: Player[], colors: string[]): PeladaState {
+function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
   return { teamSize: 5, colors, teams, queue };
 }
 

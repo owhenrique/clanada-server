@@ -24,7 +24,7 @@ function createMockHost(): MockHost {
 
 describe("DomainExceptionFilter", () => {
   const statusByCode: Array<[DomainErrorCode, number]> = [
-    ["SESSION_NOT_FOUND", 404],
+    ["MATCH_NOT_FOUND", 404],
     ["VERSION_CONFLICT", 412],
     ["INVALID_STATUS", 422],
     ["DUPLICATE_PLAYER_NAMES", 422],
@@ -46,6 +46,16 @@ describe("DomainExceptionFilter", () => {
 
     expect(status).toHaveBeenCalledWith(expectedStatus);
     expect(json).toHaveBeenCalledWith({ code });
+  });
+
+  it("CEN-4: maps MATCH_NOT_FOUND to HTTP 404 with body { code: 'MATCH_NOT_FOUND' }", () => {
+    const filter = new DomainExceptionFilter();
+    const { host, status, json } = createMockHost();
+
+    filter.catch(new DomainError("MATCH_NOT_FOUND"), host);
+
+    expect(status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ code: "MATCH_NOT_FOUND" });
   });
 
   it("maps an unexpected error to 500 with code INTERNAL", () => {

@@ -5,10 +5,10 @@ export type Team = {
   id: string;
   players: Player[];
   color: string | null;
-  matchStreak: number;
+  gameStreak: number;
 };
 
-export type PeladaState = {
+export type MatchState = {
   teamSize: number;
   colors: string[];
   teams: Team[];
@@ -18,5 +18,5 @@ export type PeladaState = {
 export type TeamIdFactory = (index: number) => string;
 
 export type DrawOutcome =
-  | { type: "swap"; state: PeladaState }
+  | { type: "swap"; state: MatchState }
   | { type: "penalties" };

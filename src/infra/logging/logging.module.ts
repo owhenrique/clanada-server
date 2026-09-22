@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { LoggerModule } from "nestjs-pino";
-import type { Env } from "../../config/env.schema";
+import type { Env } from "../config/env.schema";
 
 function resolveRequestId(request: IncomingMessage, response: ServerResponse): string {
   const header = request.headers["x-request-id"];

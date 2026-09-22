@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { formInitialState } from "./formation";
 import { swapPlayers } from "./swap";
-import type { Player, PeladaState, Team } from "../types";
+import type { Player, MatchState, Team } from "../types";
 
 function makePlayers(count: number): Player[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -14,16 +14,16 @@ function mkPlayer(id: string): Player {
   return { id, name: id };
 }
 
-function mkTeam(id: string, color: string | null, matchStreak: number): Team {
+function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
-    matchStreak,
+    gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
 }
 
-function mkState(teams: Team[], queue: Player[], colors: string[]): PeladaState {
+function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
   return { teamSize: 5, colors, teams, queue };
 }
 
@@ -126,9 +126,9 @@ describe("CEN-9: swapPlayers", () => {
     );
     const next = swapPlayers(state, "t0-0", "t1-0");
     expect(next.teams[0]?.color).toBe("verde");
-    expect(next.teams[0]?.matchStreak).toBe(3);
+    expect(next.teams[0]?.gameStreak).toBe(3);
     expect(next.teams[1]?.color).toBe("vermelho");
-    expect(next.teams[1]?.matchStreak).toBe(1);
+    expect(next.teams[1]?.gameStreak).toBe(1);
   });
 
   it("does not mutate the input state", () => {

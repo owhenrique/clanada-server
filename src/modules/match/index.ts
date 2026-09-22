@@ -1,7 +1,7 @@
-export type { Player, Team, PeladaState, TeamIdFactory, DrawOutcome } from "./types";
+export type { Player, Team, MatchState, TeamIdFactory, DrawOutcome } from "./types";
 export { formInitialState } from "./rules/formation";
 export { compactQueue } from "./rules/queue";
-export { applyResult } from "./rules/match-result";
+export { applyGameResult } from "./rules/game-result";
 export { resolveDraw } from "./rules/draw";
 export { playerJoins } from "./rules/join";
 export { playerLeaves } from "./rules/leave";

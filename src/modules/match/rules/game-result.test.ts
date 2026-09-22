@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { formInitialState } from "./formation";
-import { applyResult } from "./match-result";
+import { applyGameResult } from "./game-result";
 import { playerJoins } from "./join";
-import type { Player, PeladaState } from "../types";
+import type { Player, MatchState } from "../types";
 
 function makePlayers(count: number): Player[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -22,15 +22,15 @@ function idGen(): () => string {
   return () => `n${n++}`;
 }
 
-function colorOf(state: PeladaState, id: string): string | null | undefined {
+function colorOf(state: MatchState, id: string): string | null | undefined {
   return state.teams.find((team) => team.id === id)?.color;
 }
 
-function streakOf(state: PeladaState, id: string): number | undefined {
-  return state.teams.find((team) => team.id === id)?.matchStreak;
+function streakOf(state: MatchState, id: string): number | undefined {
+  return state.teams.find((team) => team.id === id)?.gameStreak;
 }
 
-describe("CEN-3: applyResult — fechadas", () => {
+describe("CEN-3: applyGameResult — fechadas", () => {
   it("winner stays, next enters, loser goes to the tail", () => {
     const state = formInitialState(
       makePlayers(15),
@@ -38,7 +38,7 @@ describe("CEN-3: applyResult — fechadas", () => {
       ["verde", "vermelho", "azul"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "t1"]);
     expect(next.queue).toEqual([]);
   });
@@ -50,7 +50,7 @@ describe("CEN-3: applyResult — fechadas", () => {
       ["verde", "vermelho", "azul"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(colorOf(next, "t0")).toBe("verde");
     expect(colorOf(next, "t1")).toBe("vermelho");
     expect(colorOf(next, "t2")).toBe("azul");
@@ -63,7 +63,7 @@ describe("CEN-3: applyResult — fechadas", () => {
       ["verde", "vermelho", "azul"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(streakOf(next, "t0")).toBe(1);
     expect(streakOf(next, "t1")).toBe(0);
     expect(streakOf(next, "t2")).toBe(0);
@@ -76,7 +76,7 @@ describe("CEN-3: applyResult — fechadas", () => {
       ["verde", "vermelho", "azul"],
       teamId,
     );
-    const next = applyResult(state, "t0", () => "new");
+    const next = applyGameResult(state, "t0", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t1", "t2", "t3", "t0"]);
     expect(next.teams.map((t) => t.color)).toEqual([
       "vermelho",
@@ -93,7 +93,7 @@ describe("CEN-3: applyResult — fechadas", () => {
       ["verde", "vermelho"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
     expect(streakOf(next, "t0")).toBe(1);
     expect(next.queue).toEqual([]);
@@ -107,12 +107,12 @@ describe("CEN-3: applyResult — fechadas", () => {
       teamId,
     );
     const snapshot = JSON.stringify(state);
-    applyResult(state, "t1", () => "new");
+    applyGameResult(state, "t1", () => "new");
     expect(JSON.stringify(state)).toBe(snapshot);
   });
 });
 
-describe("CEN-2: applyResult — abertas", () => {
+describe("CEN-2: applyGameResult — abertas", () => {
   it("loser dissolves into the queue and a new team is formed immediately", () => {
     const state = formInitialState(
       makePlayers(17),
@@ -120,7 +120,7 @@ describe("CEN-2: applyResult — abertas", () => {
       ["verde", "vermelho", "azul"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "new"]);
     expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
       "p15",
@@ -139,7 +139,7 @@ describe("CEN-2: applyResult — abertas", () => {
       ["verde", "vermelho"],
       teamId,
     );
-    const next = applyResult(state, "t1", () => "new");
+    const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams).toHaveLength(2);
     expect(next.teams[0]?.id).toBe("t0");
     expect(next.teams[1]?.id).toBe("new");
@@ -166,7 +166,7 @@ describe("CEN-2: applyResult — abertas", () => {
     }
     expect(state.queue).toHaveLength(5);
 
-    const next = applyResult(state, "t0", idGen());
+    const next = applyGameResult(state, "t0", idGen());
 
     expect(next.teams.map((t) => t.color)).toEqual([
       "vermelho",
@@ -187,7 +187,7 @@ describe("CEN-2: applyResult — abertas", () => {
     }
     expect(state.queue).toHaveLength(3);
 
-    const next = applyResult(state, "t0", idGen());
+    const next = applyGameResult(state, "t0", idGen());
 
     expect(next.teams.map((t) => t.color)).toEqual(["vermelho", "verde"]);
   });

@@ -1,4 +1,4 @@
-import type { Player, PeladaState, Team } from "../types";
+import type { Player, MatchState, Team } from "../types";
 import { at } from "./queue";
 
 type PlayerLocation =
@@ -6,7 +6,7 @@ type PlayerLocation =
   | { kind: "queue"; playerIndex: number };
 
 export function locatePlayer(
-  state: PeladaState,
+  state: MatchState,
   playerId: string,
 ): PlayerLocation | null {
   for (let teamIndex = 0; teamIndex < state.teams.length; teamIndex++) {
@@ -22,7 +22,7 @@ export function locatePlayer(
   return playerIndex !== -1 ? { kind: "queue", playerIndex } : null;
 }
 
-function playerAtLocation(state: PeladaState, location: PlayerLocation): Player {
+function playerAtLocation(state: MatchState, location: PlayerLocation): Player {
   return location.kind === "team"
     ? at(at(state.teams, location.teamIndex).players, location.playerIndex)
     : at(state.queue, location.playerIndex);
@@ -54,10 +54,10 @@ function withPlayerAtLocation(
 }
 
 export function swapPlayers(
-  state: PeladaState,
+  state: MatchState,
   playerAId: string,
   playerBId: string,
-): PeladaState {
+): MatchState {
   if (playerAId === playerBId) {
     return state;
   }
