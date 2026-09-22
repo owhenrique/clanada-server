@@ -1,11 +1,14 @@
 import { execSync } from "node:child_process";
 import { ConfigService } from "@nestjs/config";
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
 import { afterAll, beforeAll } from "vitest";
 import { validateEnv, type Env } from "../src/infra/config/env.schema";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
 import { PrismaMatchesRepository } from "../src/modules/matches/prisma-matches.repository";
-import { runMatchesRepositoryContract } from "../src/modules/matches/matches-repository-contract";
+import { runMatchesRepositoryContract } from "../src/modules/matches/matches-repository-contract-test";
 
 let container: StartedPostgreSqlContainer;
 let prisma: PrismaService;
@@ -20,7 +23,11 @@ beforeAll(async () => {
     stdio: "pipe",
   });
 
-  const env = validateEnv({ DATABASE_URL: databaseUrl, NODE_ENV: "test", LOG_LEVEL: "silent" });
+  const env = validateEnv({
+    DATABASE_URL: databaseUrl,
+    NODE_ENV: "test",
+    LOG_LEVEL: "silent",
+  });
   prisma = new PrismaService(new ConfigService<Env, true>(env));
   await prisma.$connect();
 }, 120000);
@@ -30,4 +37,7 @@ afterAll(async () => {
   await container.stop();
 });
 
-runMatchesRepositoryContract("prisma", () => new PrismaMatchesRepository(prisma));
+runMatchesRepositoryContract(
+  "prisma",
+  () => new PrismaMatchesRepository(prisma),
+);

@@ -70,6 +70,7 @@ Fluxo sempre nesta direção; nunca o inverso.
 - **Unit:** `modules/match` (funções puras) e services (com repositório **em memória**, não Prisma real).
 - **Integração:** repositórios Prisma reais, contra Postgres (Testcontainers ou o `docker-compose.yml` local).
 - **E2E:** rotas HTTP fim a fim com Testcontainers (`test/*.e2e-spec.ts`).
+- **Suíte de contrato:** cenários que valem para várias implementações de uma mesma porta (ex.: repositório em memória e Prisma) ficam em `<nome>-contract-test.ts`, exportando uma função `run...Contract(factory)` que cada `*.test.ts`/`*.e2e-spec.ts` chama com a sua implementação. O sufixo mantém o arquivo fora do build e da contagem de linhas de lógica.
 - **Não teste:** DTOs triviais (só `class-validator` decorators, sem lógica), nem os módulos do Nest em si (`*.module.ts`) — eles só declaram fiação, o comportamento é testado através do service/controller.
 
 ## Verificação antes de fechar uma task
