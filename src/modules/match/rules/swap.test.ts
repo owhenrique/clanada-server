@@ -24,19 +24,19 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
 }
 
 function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
-  return { teamSize: 5, colors, teams, queue };
+  return {
+    status: "ACTIVE",
+    config: { teamSize: 5, colors, gameMinutes: 10 },
+    teams,
+    queue,
+  };
 }
 
 const teamId = (index: number): string => `t${index}`;
 
 describe("CEN-9: swapPlayers", () => {
   it("swaps two players who are on different teams", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = swapPlayers(state, "p1", "p6");
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p0",
@@ -62,12 +62,7 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("swaps a team player with a queued player, each landing in the other's slot", () => {
-    const state = formInitialState(
-      makePlayers(12),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = swapPlayers(state, "p2", "p11");
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p0",
@@ -80,12 +75,7 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("swapping two players on the same team leaves the team's composition unchanged", () => {
-    const state = formInitialState(
-      makePlayers(10),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = swapPlayers(state, "p0", "p3");
     expect([...(next.teams[0]?.players.map((p) => p.id) ?? [])].sort()).toEqual([
       "p0",
@@ -97,23 +87,13 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("is a no-op when swapping a player with itself", () => {
-    const state = formInitialState(
-      makePlayers(10),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = swapPlayers(state, "p0", "p0");
     expect(next).toEqual(state);
   });
 
   it("is a no-op when either player id does not exist", () => {
-    const state = formInitialState(
-      makePlayers(10),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     expect(swapPlayers(state, "p0", "ghost")).toEqual(state);
     expect(swapPlayers(state, "ghost", "p0")).toEqual(state);
   });
@@ -132,12 +112,7 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const snapshot = JSON.stringify(state);
     swapPlayers(state, "p1", "p6");
     expect(JSON.stringify(state)).toBe(snapshot);

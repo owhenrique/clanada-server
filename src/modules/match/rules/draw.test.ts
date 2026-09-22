@@ -16,7 +16,12 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
 }
 
 function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
-  return { teamSize: 5, colors, teams, queue };
+  return {
+    status: "ACTIVE",
+    config: { teamSize: 5, colors, gameMinutes: 10 },
+    teams,
+    queue,
+  };
 }
 
 function idGen(): () => string {

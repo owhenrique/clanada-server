@@ -32,24 +32,14 @@ function streakOf(state: MatchState, id: string): number | undefined {
 
 describe("CEN-3: applyGameResult — fechadas", () => {
   it("winner stays, next enters, loser goes to the tail", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "t1"]);
     expect(next.queue).toEqual([]);
   });
 
   it("fechadas with bibs >= teams: each team keeps its fixed color", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(colorOf(next, "t0")).toBe("verde");
     expect(colorOf(next, "t1")).toBe("vermelho");
@@ -57,12 +47,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("increments the winner's streak and resets the loser's", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(streakOf(next, "t0")).toBe(1);
     expect(streakOf(next, "t1")).toBe(0);
@@ -70,12 +55,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("fewer bibs than teams: the leaving team hands its bib to the next", () => {
-    const state = formInitialState(
-      makePlayers(20),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(20), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t0", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t1", "t2", "t3", "t0"]);
     expect(next.teams.map((t) => t.color)).toEqual([
@@ -87,12 +67,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("only two teams and no queue: they replay", () => {
-    const state = formInitialState(
-      makePlayers(10),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
     expect(streakOf(next, "t0")).toBe(1);
@@ -100,12 +75,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(
-      makePlayers(15),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const snapshot = JSON.stringify(state);
     applyGameResult(state, "t1", () => "new");
     expect(JSON.stringify(state)).toBe(snapshot);
@@ -114,12 +84,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
 
 describe("CEN-2: applyGameResult — abertas", () => {
   it("loser dissolves into the queue and a new team is formed immediately", () => {
-    const state = formInitialState(
-      makePlayers(17),
-      5,
-      ["verde", "vermelho", "azul"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(17), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "new"]);
     expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
@@ -133,12 +98,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("without waiting teams: forms the next team from the queue", () => {
-    const state = formInitialState(
-      makePlayers(12),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams).toHaveLength(2);
     expect(next.teams[0]?.id).toBe("t0");
@@ -155,12 +115,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("prefers a never-used bib over recycling the one the losing team just wore", () => {
-    let state = formInitialState(
-      makePlayers(12),
-      5,
-      ["verde", "vermelho", "azul", "amarelo"],
-      teamId,
-    );
+    let state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10 }, teamId);
     for (const p of [mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")]) {
       state = playerJoins(state, p);
     }
@@ -176,12 +131,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("recycles the just-freed bib only once every never-used color is taken", () => {
-    let state = formInitialState(
-      makePlayers(10),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    let state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     for (const p of [mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")]) {
       state = playerJoins(state, p);
     }

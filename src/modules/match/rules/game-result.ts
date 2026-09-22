@@ -36,10 +36,10 @@ export function applyGameResult(
     queue = [...state.queue, ...loser.players];
   }
 
-  const compacted = compactQueue(teams, queue, state.teamSize, createTeamId);
+  const compacted = compactQueue(teams, queue, state.config.teamSize, createTeamId);
   return {
     ...state,
-    teams: assignBibs(compacted.teams, state.colors, usedColors(state.teams)),
+    teams: assignBibs(compacted.teams, state.config.colors, usedColors(state.teams)),
     queue: compacted.queue,
   };
 }

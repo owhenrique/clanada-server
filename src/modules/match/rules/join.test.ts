@@ -18,23 +18,13 @@ const teamId = (index: number): string => `t${index}`;
 
 describe("CEN-7: playerJoins", () => {
   it("appends the new player to the end of the queue", () => {
-    const state = formInitialState(
-      makePlayers(12),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const next = playerJoins(state, mkPlayer("pX"));
     expect(next.queue.map((p) => p.id)).toEqual(["p10", "p11", "pX"]);
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(
-      makePlayers(12),
-      5,
-      ["verde", "vermelho"],
-      teamId,
-    );
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
     const snapshot = JSON.stringify(state);
     playerJoins(state, mkPlayer("pX"));
     expect(JSON.stringify(state)).toBe(snapshot);

@@ -34,7 +34,7 @@ export function playerLeaves(state: MatchState, playerId: string): MatchState {
     );
     return {
       ...state,
-      teams: assignBibs(teams, state.colors, usedColors(state.teams)),
+      teams: assignBibs(teams, state.config.colors, usedColors(state.teams)),
       queue: restQueue,
     };
   }
@@ -50,7 +50,7 @@ export function playerLeaves(state: MatchState, playerId: string): MatchState {
     );
     return {
       ...state,
-      teams: assignBibs(teams, state.colors, usedColors(state.teams)),
+      teams: assignBibs(teams, state.config.colors, usedColors(state.teams)),
     };
   }
 
@@ -69,7 +69,15 @@ export function playerLeaves(state: MatchState, playerId: string): MatchState {
 
   return {
     ...state,
-    teams: assignBibs(teams, state.colors, usedColors(state.teams)),
+    teams: assignBibs(teams, state.config.colors, usedColors(state.teams)),
     queue: donorRest,
   };
+}
+
+export function playerLeavesWithReducedTeamSize(
+  _state: MatchState,
+  _playerId: string,
+  _createTeamId: () => string,
+): MatchState {
+  throw new Error("not implemented: reduce-team-size fallback ships in S4");
 }
