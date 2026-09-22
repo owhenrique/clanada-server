@@ -19,7 +19,7 @@ describe("GET /api/health (e2e)", () => {
     process.env.NODE_ENV = "test";
     process.env.LOG_LEVEL = "silent";
 
-    const { createApp } = await import("../src/main");
+    const { createApp } = await import("../src/main.js");
     app = await createApp();
     await app.init();
   }, 60000);
