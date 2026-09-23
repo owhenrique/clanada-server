@@ -199,6 +199,376 @@
           "matches"
         ]
       }
+    },
+    "/api/matches/{code}/games/win": {
+      "post": {
+        "operationId": "MatchesController_win",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoserTeamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/games/draw": {
+      "post": {
+        "operationId": "MatchesController_draw",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/MatchView"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PenaltiesRequiredView"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/games/penalties": {
+      "post": {
+        "operationId": "MatchesController_penalties",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoserTeamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/players": {
+      "post": {
+        "operationId": "MatchesController_join",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPlayerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/players/{playerId}": {
+      "delete": {
+        "operationId": "MatchesController_leave",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fallback",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "reduce-team-size"
+              ]
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/team-size": {
+      "put": {
+        "operationId": "MatchesController_changeTeamSize",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeTeamSizeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/end": {
+      "post": {
+        "operationId": "MatchesController_end",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/undo": {
+      "post": {
+        "operationId": "MatchesController_undo",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
     }
   },
   "info": {
@@ -394,6 +764,54 @@
         "required": [
           "playerAId",
           "playerBId"
+        ]
+      },
+      "LoserTeamDto": {
+        "type": "object",
+        "properties": {
+          "loserTeamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loserTeamId"
+        ]
+      },
+      "PenaltiesRequiredView": {
+        "type": "object",
+        "properties": {
+          "penaltiesRequired": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "penaltiesRequired"
+        ]
+      },
+      "JoinPlayerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ChangeTeamSizeDto": {
+        "type": "object",
+        "properties": {
+          "teamSize": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "teamSize"
         ]
       }
     }

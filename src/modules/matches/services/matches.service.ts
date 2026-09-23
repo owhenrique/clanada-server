@@ -8,6 +8,7 @@ import {
   applyEvent,
   assertValidState,
   decide,
+  replay,
   type Command,
   type CommandContext,
   type Event,
@@ -16,8 +17,11 @@ import {
 import { generateMatchCode } from "../repositories/match-code";
 import { MatchCodeCollisionError, MatchesRepository, type StoredMatch } from "../repositories/matches.repository";
 import { toMatchView, type MatchView } from "./match-view";
+import { findUndoableTarget } from "./undoable-target";
 
 const MAX_CODE_ATTEMPTS = 5;
+
+const TIMER_RESET_EVENT_TYPES: ReadonlySet<Event["type"]> = new Set(["GAME_WON", "GAME_DRAWN"]);
 
 function requireEvent(result: { event: Event } | { penaltiesRequired: true }): Event {
   if ("event" in result) {
@@ -106,6 +110,9 @@ export class MatchesService {
           expectedVersion,
           events: [result.event],
           snapshot,
+          ...(TIMER_RESET_EVENT_TYPES.has(result.event.type)
+            ? { timer: { startedAt: null, elapsedMs: 0 } }
+            : {}),
         });
         const view = await this.buildView(updated);
         this.logger.info({
@@ -128,6 +135,65 @@ export class MatchesService {
     } catch (error) {
       if (error instanceof DomainError) {
         this.logger.warn({ action: command.type, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
+  }
+
+  async undo(code: string, expectedVersion: number): Promise<MatchView> {
+    try {
+      const stored = await this.repository.findByCode(code);
+      if (stored === null) {
+        throw new DomainError("MATCH_NOT_FOUND");
+      }
+      if (stored.version !== expectedVersion) {
+        throw new VersionConflictError(await this.buildView(stored));
+      }
+      if (stored.status !== "ACTIVE") {
+        throw new DomainError("INVALID_STATUS");
+      }
+
+      const activeEvents = await this.repository.listActiveEvents(stored.id);
+      const targetIndex = findUndoableTarget(activeEvents);
+      if (targetIndex === -1) {
+        throw new DomainError("NOTHING_TO_UNDO");
+      }
+      const target = activeEvents[targetIndex];
+      if (target === undefined) {
+        throw new Error("invariant: findUndoableTarget returned an out-of-range index");
+      }
+
+      const remainingEvents = activeEvents.filter((_, index) => index !== targetIndex).map((stored) => stored.event);
+      const snapshot = replay(remainingEvents);
+      assertValidState(snapshot);
+
+      try {
+        const updated = await this.repository.revokeLast({
+          matchId: stored.id,
+          expectedVersion,
+          snapshot,
+        });
+        const view = await this.buildView(updated);
+        this.logger.info({
+          action: "undo",
+          matchCode: updated.code,
+          revokedEventType: target.event.type,
+          version: updated.version,
+        });
+        return view;
+      } catch (error) {
+        if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
+          const fresh = await this.repository.findByCode(code);
+          if (fresh === null) {
+            throw new DomainError("MATCH_NOT_FOUND");
+          }
+          throw new VersionConflictError(await this.buildView(fresh));
+        }
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action: "undo", matchCode: code, code: error.code });
       }
       throw error;
     }

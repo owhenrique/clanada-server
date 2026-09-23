@@ -142,4 +142,162 @@ describe("Matches API (e2e)", () => {
     const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
     expect(fetched.version).toBe(1);
   });
+
+  it("S7 CEN-24: a mutation on a new route without If-Match returns 400", async () => {
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
+
+    const response = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/games/win`)
+      .send({ loserTeamId: "does-not-matter" });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("S7 CEN-25: a stale If-Match on a new route returns 412 with the current MatchView", async () => {
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
+
+    const response = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/players`)
+      .set("If-Match", "99")
+      .send({ name: "Gil" });
+
+    expect(response.status).toBe(412);
+    expect(viewOf(response)).toMatchObject({ code: created.code, version: 1, status: "DRAFT" });
+
+    const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
+    expect(fetched.version).toBe(1);
+  });
+
+  it("S7 CEN-26: a full match flow exercises every new route with the version incrementing per step", async () => {
+    const fivePlayerBody = {
+      config: { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 },
+      playerNames: ["Ana", "Beto", "Caio", "Duda", "Eva"],
+    };
+
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(fivePlayerBody));
+    const code = created.code;
+    expect(created.version).toBe(1);
+
+    const started = viewOf(
+      await request(httpServerOf(app)).post(`/api/matches/${code}/start`).set("If-Match", "1").send(),
+    );
+    expect(started.status).toBe("ACTIVE");
+    expect(started.version).toBe(2);
+
+    const winLoserId = started.teams[1]?.id;
+    if (winLoserId === undefined) {
+      throw new Error("fixture is missing teams");
+    }
+    const won = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/games/win`)
+        .set("If-Match", "2")
+        .send({ loserTeamId: winLoserId }),
+    );
+    expect(won.version).toBe(3);
+
+    const drawResponse = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/games/draw`)
+      .set("If-Match", "3")
+      .send();
+    expect(drawResponse.status).toBe(200);
+    expect(drawResponse.body).toEqual({ penaltiesRequired: true });
+
+    const penaltiesLoserId = won.teams[0]?.id;
+    if (penaltiesLoserId === undefined) {
+      throw new Error("fixture is missing teams");
+    }
+    const penalized = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/games/penalties`)
+        .set("If-Match", "3")
+        .send({ loserTeamId: penaltiesLoserId }),
+    );
+    expect(penalized.version).toBe(4);
+
+    const donorLeaverId = penalized.teams[0]?.players[0]?.id;
+    if (donorLeaverId === undefined) {
+      throw new Error("fixture is missing players");
+    }
+    const leftWithDonor = viewOf(
+      await request(httpServerOf(app))
+        .delete(`/api/matches/${code}/players/${donorLeaverId}`)
+        .set("If-Match", "4")
+        .send(),
+    );
+    expect(leftWithDonor.version).toBe(5);
+    expect(leftWithDonor.queue).toEqual([]);
+
+    const noDonorLeaverId = leftWithDonor.teams[1]?.players[0]?.id;
+    if (noDonorLeaverId === undefined) {
+      throw new Error("fixture is missing players");
+    }
+    const leftWithReduce = viewOf(
+      await request(httpServerOf(app))
+        .delete(`/api/matches/${code}/players/${noDonorLeaverId}?fallback=reduce-team-size`)
+        .set("If-Match", "5")
+        .send(),
+    );
+    expect(leftWithReduce.version).toBe(6);
+    expect(leftWithReduce.config.teamSize).toBe(1);
+
+    const joined = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/players`)
+        .set("If-Match", "6")
+        .send({ name: "Fabio" }),
+    );
+    expect(joined.version).toBe(7);
+    expect(joined.queue).toEqual([]);
+
+    const resized = viewOf(
+      await request(httpServerOf(app))
+        .put(`/api/matches/${code}/team-size`)
+        .set("If-Match", "7")
+        .send({ teamSize: 2 }),
+    );
+    expect(resized.version).toBe(8);
+    expect(resized.config.teamSize).toBe(2);
+    expect(resized.teams).toHaveLength(2);
+
+    const undo1 = viewOf(
+      await request(httpServerOf(app)).post(`/api/matches/${code}/undo`).set("If-Match", "8").send(),
+    );
+    expect(undo1.version).toBe(9);
+    const undo2 = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/undo`)
+        .set("If-Match", String(undo1.version))
+        .send(),
+    );
+    expect(undo2.version).toBe(10);
+    const undo3 = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/undo`)
+        .set("If-Match", String(undo2.version))
+        .send(),
+    );
+    expect(undo3.version).toBe(11);
+    expect(undo3.status).toBe("ACTIVE");
+
+    const ended = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/end`)
+        .set("If-Match", String(undo3.version))
+        .send(),
+    );
+    expect(ended.status).toBe("ENDED");
+    expect(ended.version).toBe(12);
+
+    const rejectedLoserId = ended.teams[0]?.id ?? "unknown";
+    const afterEndResponse = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/games/win`)
+      .set("If-Match", String(ended.version))
+      .send({ loserTeamId: rejectedLoserId });
+    expect(afterEndResponse.status).toBe(422);
+    expect(afterEndResponse.body).toEqual({ code: "INVALID_STATUS" });
+
+    const finalFetch = viewOf(await request(httpServerOf(app)).get(`/api/matches/${code}`));
+    expect(finalFetch.version).toBe(12);
+  });
 });

@@ -1,7 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { UNDOABLE_EVENTS, type MatchStatus } from "../../../domain/match";
+import type { MatchStatus } from "../../../domain/match";
 import type { StoredEvent, StoredMatch } from "../repositories/matches.repository";
 import { MatchConfigDto } from "../dto/match-config.dto";
+import { findUndoableTarget } from "./undoable-target";
 
 export class PlayerView {
   @ApiProperty()
@@ -62,6 +63,11 @@ export class MatchView {
   canUndo!: boolean;
 }
 
+export class PenaltiesRequiredView {
+  @ApiProperty({ enum: [true] })
+  penaltiesRequired!: true;
+}
+
 export function toMatchView(stored: StoredMatch, activeEvents: readonly StoredEvent[], now: Date): MatchView {
   return {
     code: stored.code,
@@ -75,6 +81,6 @@ export function toMatchView(stored: StoredMatch, activeEvents: readonly StoredEv
       elapsedMs: stored.timer.elapsedMs,
     },
     serverNow: now.toISOString(),
-    canUndo: activeEvents.some((active) => UNDOABLE_EVENTS.has(active.event.type)),
+    canUndo: stored.status === "ACTIVE" && findUndoableTarget(activeEvents) !== -1,
   };
 }

@@ -1,9 +1,20 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from "@nestjs/common";
-import { ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from "@nestjs/common";
+import {
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiHeader,
+  ApiOkResponse,
+  ApiTags,
+  getSchemaPath,
+} from "@nestjs/swagger";
 import { IfMatch } from "../../../shared/http/if-match.decorator";
+import { ChangeTeamSizeDto } from "../dto/change-team-size.dto";
 import { CreateMatchDto } from "../dto/create-match.dto";
+import { JoinPlayerDto } from "../dto/join-player.dto";
+import { LeaveQueryDto } from "../dto/leave-query.dto";
+import { LoserTeamDto } from "../dto/loser-team.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
-import { MatchView } from "../services/match-view";
+import { MatchView, PenaltiesRequiredView } from "../services/match-view";
 import { MatchesService } from "../services/matches.service";
 
 @ApiTags("matches")
@@ -59,5 +70,98 @@ export class MatchesController {
     @IfMatch() version: number,
   ): Promise<MatchView | { penaltiesRequired: true }> {
     return this.matchesService.execute(code, version, { type: "start" });
+  }
+
+  @Post(":code/games/win")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  win(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: LoserTeamDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "win", loserTeamId: dto.loserTeamId });
+  }
+
+  @Post(":code/games/draw")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiExtraModels(MatchView, PenaltiesRequiredView)
+  @ApiOkResponse({
+    schema: { oneOf: [{ $ref: getSchemaPath(MatchView) }, { $ref: getSchemaPath(PenaltiesRequiredView) }] },
+  })
+  draw(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "draw" });
+  }
+
+  @Post(":code/games/penalties")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  penalties(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: LoserTeamDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "penalties", loserTeamId: dto.loserTeamId });
+  }
+
+  @Post(":code/players")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  join(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: JoinPlayerDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "join", name: dto.name });
+  }
+
+  @Delete(":code/players/:playerId")
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  leave(
+    @Param("code") code: string,
+    @Param("playerId") playerId: string,
+    @IfMatch() version: number,
+    @Query() dto: LeaveQueryDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "leave", playerId, fallback: dto.fallback });
+  }
+
+  @Put(":code/team-size")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  changeTeamSize(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: ChangeTeamSizeDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "changeTeamSize", teamSize: dto.teamSize });
+  }
+
+  @Post(":code/end")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  end(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "end" });
+  }
+
+  @Post(":code/undo")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  undo(@Param("code") code: string, @IfMatch() version: number): Promise<MatchView> {
+    return this.matchesService.undo(code, version);
   }
 }
