@@ -1,4 +1,4 @@
-import type { Event } from "../match";
+import type { Event } from "../../domain/match";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

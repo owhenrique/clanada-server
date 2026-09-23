@@ -32,5 +32,21 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["src/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@nestjs/*", "@prisma/*", "prisma", "node:*", "**/generated/**", "**/infra/**", "**/modules/**"],
+              message: "src/domain is pure: it cannot import Nest, Prisma, node builtins, or infra/generated/modules code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintConfigPrettier,
 );

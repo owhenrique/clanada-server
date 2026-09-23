@@ -23,7 +23,7 @@ function makeInitialState(): MatchState {
   );
 }
 
-describe("CEN-3: modules/match public API", () => {
+describe("CEN-3: domain/match public API", () => {
   it("exposes MatchState-shaped state with Team.gameStreak", () => {
     const state = makeInitialState();
 

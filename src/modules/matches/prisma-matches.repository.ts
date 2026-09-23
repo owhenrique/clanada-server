@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../shared/errors/domain-error";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import type { Match as MatchRow, Prisma } from "../../generated/prisma/client";
-import { UNDOABLE_EVENTS, type Event, type MatchState } from "../match";
+import { UNDOABLE_EVENTS, type Event, type MatchState } from "../../domain/match";
 import { decodeEvent, encodeEventPayload } from "./event-codec";
 import {
   MatchesRepository,

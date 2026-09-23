@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../shared/errors/domain-error";
-import { UNDOABLE_EVENTS, type Event } from "../match";
+import { UNDOABLE_EVENTS, type Event } from "../../domain/match";
 import {
   MatchesRepository,
   type AppendInput,

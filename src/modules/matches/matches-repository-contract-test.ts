@@ -6,8 +6,8 @@ import {
   type Event,
   type MatchConfig,
   type MatchState,
-} from "../match";
-import type { CommandContext } from "../match/commands/types";
+} from "../../domain/match";
+import type { CommandContext } from "../../domain/match/commands/types";
 import type { MatchesRepository } from "./matches.repository";
 
 const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 };

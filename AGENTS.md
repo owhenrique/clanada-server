@@ -19,8 +19,9 @@ src/
     ports/                    # Clock, IdGenerator, RandomSource: abstract class + impl padrão
     errors/                   # DomainError (code tipado) + filtro HTTP global
     http/                     # decorator @IfMatch()
+  domain/
+    match/                    # DOMÍNIO PURO — sem Nest, sem I/O (o lint barra imports fora do domínio)
   modules/
-    match/                    # DOMÍNIO PURO — sem Nest, sem I/O (chega no S2)
     health/                   # health.controller/service/module
     matches/                  # aplicação + HTTP + persistência da sessão (chega no S6+)
   generated/prisma/           # client Prisma gerado — não editar, não versionar
@@ -34,10 +35,10 @@ Fluxo sempre nesta direção; nunca o inverso.
 | Camada | Faz | Não faz |
 |--------|-----|---------|
 | **Controller** | Recebe a requisição já validada pelo DTO (`ValidationPipe`), chama **um** método do service e devolve o retorno. | Nenhum `if`, cálculo, mapeamento, try/catch ou acesso a repositório. |
-| **Service** | Orquestra o caso de uso: carrega pelo repositório, aplica o domínio (`modules/match`), grava, monta a view de resposta e registra o log da ação. | SQL/Prisma, detalhes de HTTP. |
+| **Service** | Orquestra o caso de uso: carrega pelo repositório, aplica o domínio (`domain/match`), grava, monta a view de resposta e registra o log da ação. | SQL/Prisma, detalhes de HTTP. |
 | **Repository** | Lê e grava no banco (Prisma), converte linha ↔ tipo de domínio, garante a concorrência por versão. | Regra de negócio. |
 
-`modules/match` não é uma camada com I/O: é uma biblioteca de funções puras que o service chama. Erros de domínio sobem como `DomainError` (`src/shared/errors/domain-error.ts`) e o `DomainExceptionFilter` global os converte em HTTP — por isso o controller não trata erro.
+`domain/match` não é uma camada com I/O: é uma biblioteca de funções puras que o service chama. Erros de domínio sobem como `DomainError` (`src/shared/errors/domain-error.ts`) e o `DomainExceptionFilter` global os converte em HTTP — por isso o controller não trata erro.
 
 ## Princípios (SOLID sem cerimônia)
 
@@ -62,12 +63,12 @@ Fluxo sempre nesta direção; nunca o inverso.
 ## Injeção de dependência e domínio puro
 
 - Portas (`Clock`, `IdGenerator`, `RandomSource`, repositórios) são `abstract class` injetadas via Nest DI — nunca `@Inject('TOKEN_STRING')`.
-- `modules/match` é uma biblioteca de funções puras, sem decorators do Nest, sem `Injectable`, sem I/O. O service é quem chama essas funções e lida com o resto (Prisma, HTTP, logs).
-- O único ponto não determinístico do domínio é o sorteio: injete `RandomSource`/`IdGenerator`/`Clock` como parâmetro — nunca `Math.random()`, `new Date()` ou `crypto.randomUUID()` direto dentro de `modules/match`.
+- `domain/match` é uma biblioteca de funções puras, sem decorators do Nest, sem `Injectable`, sem I/O. O service é quem chama essas funções e lida com o resto (Prisma, HTTP, logs).
+- O único ponto não determinístico do domínio é o sorteio: injete `RandomSource`/`IdGenerator`/`Clock` como parâmetro — nunca `Math.random()`, `new Date()` ou `crypto.randomUUID()` direto dentro de `domain/match`.
 
 ## O que testar (e o que não)
 
-- **Unit:** `modules/match` (funções puras) e services (com repositório **em memória**, não Prisma real).
+- **Unit:** `domain/match` (funções puras) e services (com repositório **em memória**, não Prisma real).
 - **Integração:** repositórios Prisma reais, contra Postgres (Testcontainers ou o `docker-compose.yml` local).
 - **E2E:** rotas HTTP fim a fim com Testcontainers (`test/*.e2e-spec.ts`).
 - **Suíte de contrato:** cenários que valem para várias implementações de uma mesma porta (ex.: repositório em memória e Prisma) ficam em `<nome>-contract-test.ts`, exportando uma função `run...Contract(factory)` que cada `*.test.ts`/`*.e2e-spec.ts` chama com a sua implementação. O sufixo mantém o arquivo fora do build e da contagem de linhas de lógica.

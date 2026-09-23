@@ -1,4 +1,4 @@
-import type { Event, MatchState, MatchStatus } from "../match";
+import type { Event, MatchState, MatchStatus } from "../../domain/match";
 
 export type MatchTimer = {
   startedAt: Date | null;
