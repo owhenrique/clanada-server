@@ -37,6 +37,7 @@ describe("DomainExceptionFilter", () => {
     ["TIMER_RUNNING", 422],
     ["TEAM_SIZE_NOT_ALLOWED", 422],
     ["NOTHING_TO_UNDO", 422],
+    ["TOO_MANY_LOOKUPS", 429],
   ];
 
   it.each(statusByCode)("maps %s to HTTP %i", (code, expectedStatus) => {
@@ -47,6 +48,16 @@ describe("DomainExceptionFilter", () => {
 
     expect(status).toHaveBeenCalledWith(expectedStatus);
     expect(json).toHaveBeenCalledWith({ code });
+  });
+
+  it("CEN-13: maps TOO_MANY_LOOKUPS to HTTP 429 with body { code: 'TOO_MANY_LOOKUPS' }", () => {
+    const filter = new DomainExceptionFilter();
+    const { host, status, json } = createMockHost();
+
+    filter.catch(new DomainError("TOO_MANY_LOOKUPS"), host);
+
+    expect(status).toHaveBeenCalledWith(429);
+    expect(json).toHaveBeenCalledWith({ code: "TOO_MANY_LOOKUPS" });
   });
 
   it("CEN-4: maps MATCH_NOT_FOUND to HTTP 404 with body { code: 'MATCH_NOT_FOUND' }", () => {

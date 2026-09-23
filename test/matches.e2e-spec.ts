@@ -37,6 +37,9 @@ describe("Matches API (e2e)", () => {
     process.env.DATABASE_URL = databaseUrl;
     process.env.NODE_ENV = "test";
     process.env.LOG_LEVEL = "silent";
+    process.env.THROTTLE_GLOBAL_LIMIT = "10000";
+    process.env.THROTTLE_CREATE_LIMIT = "10000";
+    process.env.THROTTLE_LOOKUP_MISS_LIMIT = "10000";
 
     const { createApp } = await import("../src/main.js");
     app = await createApp();
@@ -299,5 +302,63 @@ describe("Matches API (e2e)", () => {
 
     const finalFetch = viewOf(await request(httpServerOf(app)).get(`/api/matches/${code}`));
     expect(finalFetch.version).toBe(12);
+  });
+
+  it("CEN-11: timer routes start, pause and reset the match timer", async () => {
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
+    const code = created.code;
+    const started = viewOf(
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/start`)
+        .set("If-Match", String(created.version))
+        .send(),
+    );
+
+    const startResponse = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/timer/start`)
+      .set("If-Match", String(started.version))
+      .send();
+    const running = viewOf(startResponse);
+    expect(startResponse.status).toBe(200);
+    expect(running.version).toBe(started.version + 1);
+    expect(running.timer.startedAt).not.toBeNull();
+    expect(typeof running.serverNow).toBe("string");
+
+    const pauseResponse = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/timer/pause`)
+      .set("If-Match", String(running.version))
+      .send();
+    const paused = viewOf(pauseResponse);
+    expect(pauseResponse.status).toBe(200);
+    expect(paused.timer.startedAt).toBeNull();
+    expect(paused.timer.elapsedMs).toBeGreaterThanOrEqual(0);
+
+    const resetResponse = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/timer/reset`)
+      .set("If-Match", String(paused.version))
+      .send();
+    expect(resetResponse.status).toBe(200);
+    expect(viewOf(resetResponse).timer).toEqual({ startedAt: null, elapsedMs: 0 });
+
+    const withoutIfMatch = await request(httpServerOf(app)).post(`/api/matches/${code}/timer/start`).send();
+    expect(withoutIfMatch.status).toBe(400);
+  });
+
+  it("CEN-11: timer route on a DRAFT match returns 422 INVALID_STATUS", async () => {
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
+
+    const response = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/timer/start`)
+      .set("If-Match", String(created.version))
+      .send();
+
+    expect(response.status).toBe(422);
+    expect(response.body).toEqual({ code: "INVALID_STATUS" });
+  });
+
+  it("CEN-16: Swagger UI is served outside production", async () => {
+    const response = await request(httpServerOf(app)).get("/api/docs/");
+
+    expect(response.status).toBe(200);
   });
 });

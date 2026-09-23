@@ -59,4 +59,35 @@ describe("envSchema", () => {
   it("rejects an invalid LOG_LEVEL", () => {
     expect(() => envSchema.parse({ ...validRawEnv, LOG_LEVEL: "not-a-level" })).toThrow();
   });
+
+  it("CEN-15: applies the default throttle limits and trust proxy hops", () => {
+    const result = envSchema.parse(validRawEnv);
+
+    expect(result).toMatchObject({
+      THROTTLE_TTL_MS: 60000,
+      THROTTLE_GLOBAL_LIMIT: 120,
+      THROTTLE_CREATE_LIMIT: 10,
+      THROTTLE_LOOKUP_MISS_LIMIT: 10,
+      TRUST_PROXY_HOPS: 0,
+    });
+  });
+
+  it("CEN-15: coerces explicit throttle values", () => {
+    const result = envSchema.parse({ ...validRawEnv, THROTTLE_CREATE_LIMIT: "2", TRUST_PROXY_HOPS: "1" });
+
+    expect(result.THROTTLE_CREATE_LIMIT).toBe(2);
+    expect(result.TRUST_PROXY_HOPS).toBe(1);
+  });
+
+  it.each(["THROTTLE_TTL_MS", "THROTTLE_GLOBAL_LIMIT", "THROTTLE_CREATE_LIMIT", "THROTTLE_LOOKUP_MISS_LIMIT"])(
+    "CEN-15: rejects %s = 0",
+    (key) => {
+      expect(() => envSchema.parse({ ...validRawEnv, [key]: "0" })).toThrow();
+    },
+  );
+
+  it("CEN-15: accepts TRUST_PROXY_HOPS = 0 and rejects a negative value", () => {
+    expect(envSchema.parse({ ...validRawEnv, TRUST_PROXY_HOPS: "0" }).TRUST_PROXY_HOPS).toBe(0);
+    expect(() => envSchema.parse({ ...validRawEnv, TRUST_PROXY_HOPS: "-1" })).toThrow();
+  });
 });

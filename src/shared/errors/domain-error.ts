@@ -10,7 +10,8 @@ export type DomainErrorCode =
   | "NO_DONOR_AVAILABLE"
   | "TIMER_RUNNING"
   | "TEAM_SIZE_NOT_ALLOWED"
-  | "NOTHING_TO_UNDO";
+  | "NOTHING_TO_UNDO"
+  | "TOO_MANY_LOOKUPS";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

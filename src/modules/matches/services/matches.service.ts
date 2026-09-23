@@ -16,7 +16,9 @@ import {
 } from "../../../domain/match";
 import { generateMatchCode } from "../repositories/match-code";
 import { MatchCodeCollisionError, MatchesRepository, type StoredMatch } from "../repositories/matches.repository";
+import { LookupMissLimiter } from "./lookup-miss-limiter";
 import { toMatchView, type MatchView } from "./match-view";
+import { applyTimerAction, type TimerAction } from "./timer";
 import { findUndoableTarget } from "./undoable-target";
 
 const MAX_CODE_ATTEMPTS = 5;
@@ -37,6 +39,7 @@ export class MatchesService {
     private readonly clock: Clock,
     private readonly idGenerator: IdGenerator,
     private readonly randomSource: RandomSource,
+    private readonly lookupMissLimiter: LookupMissLimiter,
     @InjectPinoLogger(MatchesService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -73,12 +76,54 @@ export class MatchesService {
     }
   }
 
-  async get(code: string): Promise<MatchView> {
+  async get(code: string, clientIp: string): Promise<MatchView> {
+    if (this.lookupMissLimiter.isBlocked(clientIp)) {
+      throw new DomainError("TOO_MANY_LOOKUPS");
+    }
     const stored = await this.repository.findByCode(code);
     if (stored === null) {
+      this.lookupMissLimiter.recordMiss(clientIp);
       throw new DomainError("MATCH_NOT_FOUND");
     }
     return this.buildView(stored);
+  }
+
+  async timer(code: string, expectedVersion: number, timerAction: TimerAction): Promise<MatchView> {
+    const action = `timer.${timerAction}`;
+    try {
+      const stored = await this.repository.findByCode(code);
+      if (stored === null) {
+        throw new DomainError("MATCH_NOT_FOUND");
+      }
+      if (stored.version !== expectedVersion) {
+        throw new VersionConflictError(await this.buildView(stored));
+      }
+      if (stored.status !== "ACTIVE") {
+        throw new DomainError("INVALID_STATUS");
+      }
+
+      const timer = applyTimerAction(stored.timer, timerAction, this.clock.now());
+      if (timer === stored.timer) {
+        return await this.buildView(stored);
+      }
+
+      try {
+        const updated = await this.repository.updateTimer({ matchId: stored.id, expectedVersion, timer });
+        const view = await this.buildView(updated);
+        this.logger.info({ action, matchCode: updated.code, version: updated.version });
+        return view;
+      } catch (error) {
+        if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
+          throw await this.freshVersionConflict(code);
+        }
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
   }
 
   async execute(
@@ -124,11 +169,7 @@ export class MatchesService {
         return view;
       } catch (error) {
         if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
-          const fresh = await this.repository.findByCode(code);
-          if (fresh === null) {
-            throw new DomainError("MATCH_NOT_FOUND");
-          }
-          throw new VersionConflictError(await this.buildView(fresh));
+          throw await this.freshVersionConflict(code);
         }
         throw error;
       }
@@ -183,11 +224,7 @@ export class MatchesService {
         return view;
       } catch (error) {
         if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
-          const fresh = await this.repository.findByCode(code);
-          if (fresh === null) {
-            throw new DomainError("MATCH_NOT_FOUND");
-          }
-          throw new VersionConflictError(await this.buildView(fresh));
+          throw await this.freshVersionConflict(code);
         }
         throw error;
       }
@@ -197,6 +234,14 @@ export class MatchesService {
       }
       throw error;
     }
+  }
+
+  private async freshVersionConflict(code: string): Promise<DomainError> {
+    const fresh = await this.repository.findByCode(code);
+    if (fresh === null) {
+      return new DomainError("MATCH_NOT_FOUND");
+    }
+    return new VersionConflictError(await this.buildView(fresh));
   }
 
   private async buildView(stored: StoredMatch): Promise<MatchView> {

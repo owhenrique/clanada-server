@@ -39,6 +39,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -69,6 +72,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -107,6 +113,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -155,6 +164,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -193,6 +205,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -241,6 +256,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -286,6 +304,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -334,6 +355,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -382,6 +406,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -439,6 +466,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -487,6 +517,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -525,6 +558,132 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/timer/start": {
+      "post": {
+        "operationId": "MatchesController_startTimer",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/timer/pause": {
+      "post": {
+        "operationId": "MatchesController_pauseTimer",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/timer/reset": {
+      "post": {
+        "operationId": "MatchesController_resetTimer",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [
@@ -563,6 +722,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
           }
         },
         "tags": [

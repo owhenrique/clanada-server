@@ -1,5 +1,7 @@
+import type { ConfigService } from "@nestjs/config";
 import { describe, expect, it, vi } from "vitest";
 import type { PinoLogger } from "nestjs-pino";
+import type { Env } from "../../../infra/config/env.schema";
 import { DomainError, VersionConflictError } from "../../../shared/errors/domain-error";
 import type { Clock } from "../../../shared/ports/clock";
 import type { IdGenerator } from "../../../shared/ports/id-generator";
@@ -16,6 +18,7 @@ import {
   type StoredMatch,
   type UpdateTimerInput,
 } from "../repositories/matches.repository";
+import { LookupMissLimiter } from "./lookup-miss-limiter";
 import { MatchesService } from "./matches.service";
 import type { MatchView } from "./match-view";
 
@@ -42,6 +45,26 @@ function fixedClock(iso: string): Clock {
   return { now: () => now };
 }
 
+class MutableClock implements Clock {
+  constructor(private current: Date) {}
+
+  now(): Date {
+    return this.current;
+  }
+
+  advance(ms: number): void {
+    this.current = new Date(this.current.getTime() + ms);
+  }
+}
+
+function lookupMissLimiter(clock: Clock, limit = 1000): LookupMissLimiter {
+  const values: Partial<Env> = { THROTTLE_LOOKUP_MISS_LIMIT: limit, THROTTLE_TTL_MS: 60000 };
+  const config = { get: (key: keyof Env) => values[key] } as unknown as ConfigService<Env, true>;
+  return new LookupMissLimiter(clock, config);
+}
+
+const CLIENT_IP = "10.0.0.1";
+
 type FakeLogger = {
   info: ReturnType<typeof vi.fn>;
   warn: ReturnType<typeof vi.fn>;
@@ -57,6 +80,7 @@ function makeService(overrides?: {
   idGenerator?: IdGenerator;
   random?: RandomSource;
   logger?: FakeLogger;
+  lookupMissLimit?: number;
 }): {
   service: MatchesService;
   repository: MatchesRepository;
@@ -67,7 +91,15 @@ function makeService(overrides?: {
   const idGenerator = overrides?.idGenerator ?? sequentialIds("id");
   const random = overrides?.random ?? incrementingRandom();
   const logger = overrides?.logger ?? fakeLogger();
-  const service = new MatchesService(repository, clock, idGenerator, random, logger as unknown as PinoLogger);
+  const limiter = lookupMissLimiter(clock, overrides?.lookupMissLimit);
+  const service = new MatchesService(
+    repository,
+    clock,
+    idGenerator,
+    random,
+    limiter,
+    logger as unknown as PinoLogger,
+  );
   return { service, repository, logger };
 }
 
@@ -234,7 +266,7 @@ describe("MatchesService", () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
 
-    const view = await service.get(created.code);
+    const view = await service.get(created.code, CLIENT_IP);
 
     expect(view).toEqual(created);
   });
@@ -242,7 +274,7 @@ describe("MatchesService", () => {
   it("CEN-7 (unit): get throws MATCH_NOT_FOUND for an unknown code", async () => {
     const { service } = makeService();
 
-    await expect(service.get("ZZZZZZZZ")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.get("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
   });
 
   it("CEN-8: reshuffle produces a new order and logs the completed action", async () => {
@@ -950,5 +982,152 @@ describe("MatchesService", () => {
       matchCode: undone.code,
       code: "NOTHING_TO_UNDO",
     });
+  });
+});
+
+describe("MatchesService timer (S8)", () => {
+  async function startedMatch(service: MatchesService, names: string[] = playerNames): Promise<MatchView> {
+    const created = await service.create({ config, playerNames: names });
+    return asView(await service.execute(created.code, created.version, { type: "start" }));
+  }
+
+  it("CEN-6: start, pause and reset persist the timer, bump the version and record no event", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository, logger } = makeService({ clock });
+    const started = await startedMatch(service);
+    const stored = await repository.findByCode(started.code);
+    if (stored === null) {
+      throw new Error("fixture is missing the match");
+    }
+    const eventsBefore = await repository.listActiveEvents(stored.id);
+
+    const running = await service.timer(started.code, started.version, "start");
+    clock.advance(45000);
+    const paused = await service.timer(started.code, running.version, "pause");
+    const zeroed = await service.timer(started.code, paused.version, "reset");
+
+    expect([running.version, paused.version, zeroed.version]).toEqual([
+      started.version + 1,
+      started.version + 2,
+      started.version + 3,
+    ]);
+    expect(running.timer).toEqual({ startedAt: "2026-09-22T12:00:00.000Z", elapsedMs: 0 });
+    expect(paused.timer).toEqual({ startedAt: null, elapsedMs: 45000 });
+    expect(zeroed.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+    expect(await repository.listActiveEvents(stored.id)).toEqual(eventsBefore);
+    expect([running.canUndo, paused.canUndo, zeroed.canUndo]).toEqual([
+      started.canUndo,
+      started.canUndo,
+      started.canUndo,
+    ]);
+    for (const [action, view] of [
+      ["timer.start", running],
+      ["timer.pause", paused],
+      ["timer.reset", zeroed],
+    ] as const) {
+      expect(logger.info).toHaveBeenCalledWith({ action, matchCode: started.code, version: view.version });
+    }
+  });
+
+  it("CEN-7: a timer command without effect does not persist nor bump the version", async () => {
+    const { service, repository } = makeService();
+    const started = await startedMatch(service);
+    const running = await service.timer(started.code, started.version, "start");
+    const updateTimer = vi.spyOn(repository, "updateTimer");
+
+    const again = await service.timer(started.code, running.version, "start");
+
+    expect(again.version).toBe(running.version);
+    expect(again.timer.startedAt).toBe(running.timer.startedAt);
+    expect(updateTimer).not.toHaveBeenCalled();
+  });
+
+  async function lockedFixture(): Promise<{ service: MatchesService; running: MatchView }> {
+    const nineNames = Array.from({ length: 9 }, (_, index) => `Player${index}`);
+    const { service } = makeService();
+    const started = await startedMatch(service, nineNames);
+    expect(started.teams).toHaveLength(4);
+    expect(started.queue).toHaveLength(1);
+    const running = await service.timer(started.code, started.version, "start");
+    return { service, running };
+  }
+
+  it("CEN-8: a timer started through the route locks on-field players and team size", async () => {
+    const { service, running } = await lockedFixture();
+    const onFieldPlayer = running.teams[0]?.players[0];
+    const waitingPlayer = running.teams[2]?.players[0];
+    const queuedPlayer = running.queue[0];
+    if (onFieldPlayer === undefined || waitingPlayer === undefined || queuedPlayer === undefined) {
+      throw new Error("fixture is missing players");
+    }
+
+    await expect(
+      service.execute(running.code, running.version, {
+        type: "swap",
+        playerAId: onFieldPlayer.id,
+        playerBId: waitingPlayer.id,
+      }),
+    ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
+    await expect(
+      service.execute(running.code, running.version, { type: "leave", playerId: onFieldPlayer.id }),
+    ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
+    await expect(
+      service.execute(running.code, running.version, { type: "changeTeamSize", teamSize: 1 }),
+    ).rejects.toMatchObject({ code: "TIMER_RUNNING" });
+
+    const afterQueueLeave = asView(
+      await service.execute(running.code, running.version, { type: "leave", playerId: queuedPlayer.id }),
+    );
+    expect(afterQueueLeave.version).toBe(running.version + 1);
+    expect(afterQueueLeave.queue).toEqual([]);
+  });
+
+  it("CEN-9: pausing the timer unlocks on-field players", async () => {
+    const { service, running } = await lockedFixture();
+    const onFieldPlayer = running.teams[0]?.players[0];
+    if (onFieldPlayer === undefined) {
+      throw new Error("fixture is missing players");
+    }
+
+    const paused = await service.timer(running.code, running.version, "pause");
+    const view = asView(
+      await service.execute(paused.code, paused.version, { type: "leave", playerId: onFieldPlayer.id }),
+    );
+
+    expect(view.version).toBe(paused.version + 1);
+  });
+
+  it("CEN-10: timer commands require ACTIVE, a matching version and an existing match", async () => {
+    const { service, logger } = makeService();
+    const draft = await service.create({ config, playerNames });
+    await expect(service.timer(draft.code, draft.version, "start")).rejects.toMatchObject({
+      code: "INVALID_STATUS",
+    });
+    expect(logger.warn).toHaveBeenCalledWith({ action: "timer.start", matchCode: draft.code, code: "INVALID_STATUS" });
+
+    const started = await startedMatch(service);
+    const ended = asView(await service.execute(started.code, started.version, { type: "end" }));
+    await expect(service.timer(ended.code, ended.version, "start")).rejects.toMatchObject({
+      code: "INVALID_STATUS",
+    });
+
+    const active = await startedMatch(service);
+    const stale = service.timer(active.code, active.version - 1, "start");
+    await expect(stale).rejects.toBeInstanceOf(VersionConflictError);
+    await expect(stale).rejects.toMatchObject({ view: { version: active.version } });
+
+    await expect(service.timer("ZZZZZZZZ", 1, "start")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+  });
+
+  it("CEN-13: after the miss limit an IP gets TOO_MANY_LOOKUPS even for an existing code", async () => {
+    const { service } = makeService({ lookupMissLimit: 2 });
+    const existing = await service.create({ config, playerNames });
+
+    await expect(service.get("XXXXXXXX", "1.1.1.1")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.get("XXXXXXXX", "1.1.1.1")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.get(existing.code, "1.1.1.1")).rejects.toMatchObject({ code: "TOO_MANY_LOOKUPS" });
+
+    const view = await service.get(existing.code, "2.2.2.2");
+    expect(view.code).toBe(existing.code);
   });
 });
