@@ -1,5 +1,4 @@
-import type { ArgumentsHost } from "@nestjs/common";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, type ArgumentsHost, type LoggerService } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
 import { DomainExceptionFilter } from "./domain-exception.filter";
@@ -10,17 +9,23 @@ type MockHost = {
   json: ReturnType<typeof vi.fn>;
 };
 
-function createMockHost(): MockHost {
+function createMockHost(headersSent = false): MockHost {
   const json = vi.fn();
   const status = vi.fn().mockReturnValue({ json });
-  const response = { status };
+  const response = { status, headersSent };
   const host = {
     switchToHttp: () => ({
       getResponse: () => response,
-      getRequest: () => ({ headers: {} }),
+      getRequest: () => ({ id: "req-1", method: "GET", originalUrl: "/api/matches", headers: {} }),
     }),
   } as unknown as ArgumentsHost;
   return { host, status, json };
+}
+
+function createMockLogger(): { logger: LoggerService; error: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> } {
+  const error = vi.fn();
+  const warn = vi.fn();
+  return { logger: { log: vi.fn(), error, warn }, error, warn };
 }
 
 describe("DomainExceptionFilter", () => {
@@ -113,5 +118,68 @@ describe("DomainExceptionFilter", () => {
 
     expect(status).toHaveBeenCalledWith(500);
     expect(json).toHaveBeenCalledWith({ code: "INTERNAL" });
+  });
+
+  it("logs unexpected errors with the structured error, method, url and request id", () => {
+    const { logger, error } = createMockLogger();
+    const filter = new DomainExceptionFilter(logger);
+    const { host } = createMockHost();
+    const failure = new Error("secret internal detail");
+
+    filter.catch(failure, host);
+
+    expect(error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: failure, method: "GET", url: "/api/matches", requestId: "req-1" }),
+      "Unhandled exception",
+    );
+  });
+
+  it("does not leak the error message in the response body", () => {
+    const filter = new DomainExceptionFilter(createMockLogger().logger);
+    const { host, json } = createMockHost();
+
+    filter.catch(new Error("secret internal detail"), host);
+
+    expect(JSON.stringify(json.mock.calls)).not.toContain("secret internal detail");
+  });
+
+  it.each([
+    ["Prisma P1001", Object.assign(new Error("Can't reach database"), { code: "P1001" })],
+    ["ECONNREFUSED", Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" })],
+    ["wrapped cause", new Error("adapter failure", { cause: Object.assign(new Error("x"), { code: "ECONNREFUSED" }) })],
+  ])("maps a database connection failure (%s) to 503 SERVICE_UNAVAILABLE and logs it", (_name, failure) => {
+    const { logger, error } = createMockLogger();
+    const filter = new DomainExceptionFilter(logger);
+    const { host, status, json } = createMockHost();
+
+    filter.catch(failure, host);
+
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith({ code: "SERVICE_UNAVAILABLE" });
+    expect(error).toHaveBeenCalledWith(expect.objectContaining({ err: failure }), "Database unavailable");
+  });
+
+  it("keeps the framework status and body for HttpException without logging an error", () => {
+    const { logger, error } = createMockLogger();
+    const filter = new DomainExceptionFilter(logger);
+    const { host, status, json } = createMockHost();
+    const exception = new BadRequestException("invalid payload");
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(exception.getResponse());
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("logs the error but does not write when headers were already sent", () => {
+    const { logger, error } = createMockLogger();
+    const filter = new DomainExceptionFilter(logger);
+    const { host, status } = createMockHost(true);
+
+    filter.catch(new Error("late failure"), host);
+
+    expect(error).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
   });
 });

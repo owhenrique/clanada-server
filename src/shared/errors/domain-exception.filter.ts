@@ -1,7 +1,10 @@
-import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
+import type { ArgumentsHost, ExceptionFilter, LoggerService } from "@nestjs/common";
 import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
+import { isDatabaseUnavailableError } from "./infra-error";
+
+type RequestWithId = Request & { id?: string | number };
 
 const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
   MATCH_NOT_FOUND: HttpStatus.NOT_FOUND,
@@ -21,10 +24,11 @@ const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
 
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(DomainExceptionFilter.name);
+  constructor(private readonly logger: LoggerService = new Logger(DomainExceptionFilter.name)) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
 
     if (exception instanceof VersionConflictError) {
       response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json(exception.view);
@@ -37,12 +41,34 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
+      if (exception.getStatus() >= 500) {
+        this.logger.error({ err: exception, ...this.requestContext(http.getRequest<RequestWithId>()) }, "Http exception");
+      }
       response.status(exception.getStatus()).json(exception.getResponse());
       return;
     }
 
-    const stack = exception instanceof Error ? exception.stack : String(exception);
-    this.logger.error("Unhandled exception", stack);
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ code: "INTERNAL" });
+    const context = this.requestContext(http.getRequest<RequestWithId>());
+    const err = exception instanceof Error ? exception : new Error(String(exception));
+
+    if (isDatabaseUnavailableError(exception)) {
+      this.logger.error({ err, ...context }, "Database unavailable");
+      this.respond(response, HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE");
+      return;
+    }
+
+    this.logger.error({ err, ...context }, "Unhandled exception");
+    this.respond(response, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL");
+  }
+
+  private respond(response: Response, status: number, code: string): void {
+    if (response.headersSent) {
+      return;
+    }
+    response.status(status).json({ code });
+  }
+
+  private requestContext(request: RequestWithId): { method: string; url: string; requestId?: string | number } {
+    return { method: request.method, url: request.originalUrl, requestId: request.id };
   }
 }
