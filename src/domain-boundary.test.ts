@@ -33,7 +33,7 @@ describe("CEN-4: lint blocks Prisma, node:*, generated/, infra/ and modules/ imp
     `import { randomUUID } from "node:crypto";`,
     `import { PrismaClient } from "../../../generated/prisma/client";`,
     `import { PrismaService } from "../../../infra/prisma/prisma.service";`,
-    `import { MatchesRepository } from "../../../modules/matches/matches.repository";`,
+    `import { MatchesRepository } from "../../../modules/matches/repositories/matches.repository";`,
   ];
 
   it.each(forbiddenImports)("flags %s", async (importLine) => {
@@ -58,7 +58,7 @@ describe("CEN-5: allowed imports inside the domain, and the rule stays scoped to
   });
 
   it("does not flag modules/matches importing @nestjs/common and Prisma", async () => {
-    const filePath = path.join(cwd, "src/modules/matches/prisma-matches.repository.ts");
+    const filePath = path.join(cwd, "src/modules/matches/repositories/prisma-matches.repository.ts");
     const code = readFileSync(filePath, "utf-8");
 
     const messages = await restrictedImportMessages(code, filePath);

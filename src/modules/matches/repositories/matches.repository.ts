@@ -1,4 +1,4 @@
-import type { Event, MatchState, MatchStatus } from "../../domain/match";
+import type { Event, MatchState, MatchStatus } from "../../../domain/match";
 
 export type MatchTimer = {
   startedAt: Date | null;
@@ -47,6 +47,13 @@ export type UpdateTimerInput = {
   expectedVersion: number;
   timer: MatchTimer;
 };
+
+export class MatchCodeCollisionError extends Error {
+  constructor(code: string) {
+    super(`invariant: match code "${code}" is already in use`);
+    this.name = "MatchCodeCollisionError";
+  }
+}
 
 export abstract class MatchesRepository {
   abstract create(input: CreateMatchInput): Promise<StoredMatch>;

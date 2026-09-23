@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RandomSource } from "../../shared/ports/random-source";
+import type { RandomSource } from "../../../shared/ports/random-source";
 import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, generateMatchCode } from "./match-code";
 
 function fakeRandom(values: readonly number[]): RandomSource {

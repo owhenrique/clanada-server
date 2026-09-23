@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { DomainError } from "../../shared/errors/domain-error";
-import { PrismaService } from "../../infra/prisma/prisma.service";
-import type { Match as MatchRow, Prisma } from "../../generated/prisma/client";
-import { UNDOABLE_EVENTS, type Event, type MatchState } from "../../domain/match";
+import { DomainError } from "../../../shared/errors/domain-error";
+import { PrismaService } from "../../../infra/prisma/prisma.service";
+import { Prisma, type Match as MatchRow } from "../../../generated/prisma/client";
+import { UNDOABLE_EVENTS, type Event, type MatchState } from "../../../domain/match";
 import { decodeEvent, encodeEventPayload } from "./event-codec";
 import {
+  MatchCodeCollisionError,
   MatchesRepository,
   type AppendInput,
   type CreateMatchInput,
@@ -13,6 +14,10 @@ import {
   type StoredMatch,
   type UpdateTimerInput,
 } from "./matches.repository";
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 function toInputJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -55,28 +60,35 @@ export class PrismaMatchesRepository extends MatchesRepository {
   }
 
   async create(input: CreateMatchInput): Promise<StoredMatch> {
-    const row = await this.prisma.$transaction(async (tx) => {
-      const match = await tx.match.create({
-        data: {
-          code: input.code,
-          status: input.snapshot.status,
-          version: 1,
-          snapshot: toInputJson(input.snapshot),
-          timerStartedAt: null,
-          timerElapsedMs: 0,
-        },
+    try {
+      const row = await this.prisma.$transaction(async (tx) => {
+        const match = await tx.match.create({
+          data: {
+            code: input.code,
+            status: input.snapshot.status,
+            version: 1,
+            snapshot: toInputJson(input.snapshot),
+            timerStartedAt: null,
+            timerElapsedMs: 0,
+          },
+        });
+        await tx.matchEvent.create({
+          data: {
+            matchId: match.id,
+            seq: 1,
+            type: input.event.type,
+            payload: toInputJson(encodeEventPayload(input.event)),
+          },
+        });
+        return match;
       });
-      await tx.matchEvent.create({
-        data: {
-          matchId: match.id,
-          seq: 1,
-          type: input.event.type,
-          payload: toInputJson(encodeEventPayload(input.event)),
-        },
-      });
-      return match;
-    });
-    return toStoredMatch(row);
+      return toStoredMatch(row);
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        throw new MatchCodeCollisionError(input.code);
+      }
+      throw error;
+    }
   }
 
   async findByCode(code: string): Promise<StoredMatch | null> {

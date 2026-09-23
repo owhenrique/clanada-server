@@ -1,9 +1,12 @@
 import { Module } from "@nestjs/common";
-import { MatchesRepository } from "./matches.repository";
-import { PrismaMatchesRepository } from "./prisma-matches.repository";
+import { MatchesController } from "./controllers/matches.controller";
+import { MatchesRepository } from "./repositories/matches.repository";
+import { PrismaMatchesRepository } from "./repositories/prisma-matches.repository";
+import { MatchesService } from "./services/matches.service";
 
 @Module({
-  providers: [{ provide: MatchesRepository, useClass: PrismaMatchesRepository }],
+  controllers: [MatchesController],
+  providers: [MatchesService, { provide: MatchesRepository, useClass: PrismaMatchesRepository }],
   exports: [MatchesRepository],
 })
 export class MatchesModule {}

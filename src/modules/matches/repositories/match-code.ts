@@ -1,4 +1,4 @@
-import type { RandomSource } from "../../shared/ports/random-source";
+import type { RandomSource } from "../../../shared/ports/random-source";
 
 export const MATCH_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const MATCH_CODE_LENGTH = 8;

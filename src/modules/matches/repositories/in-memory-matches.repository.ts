@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
-import { DomainError } from "../../shared/errors/domain-error";
-import { UNDOABLE_EVENTS, type Event } from "../../domain/match";
+import { DomainError } from "../../../shared/errors/domain-error";
+import { UNDOABLE_EVENTS, type Event } from "../../../domain/match";
 import {
+  MatchCodeCollisionError,
   MatchesRepository,
   type AppendInput,
   type CreateMatchInput,
@@ -38,6 +39,9 @@ export class InMemoryMatchesRepository extends MatchesRepository {
   private readonly codeIndex = new Map<string, string>();
 
   create(input: CreateMatchInput): Promise<StoredMatch> {
+    if (this.codeIndex.has(input.code)) {
+      return Promise.reject(new MatchCodeCollisionError(input.code));
+    }
     const id = randomUUID();
     const now = new Date();
     const match: StoredMatch = {

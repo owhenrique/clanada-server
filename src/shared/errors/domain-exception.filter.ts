@@ -1,7 +1,7 @@
 import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
-import { Catch, HttpStatus, Logger } from "@nestjs/common";
+import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { Response } from "express";
-import { DomainError, type DomainErrorCode } from "./domain-error";
+import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
 
 const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
   MATCH_NOT_FOUND: HttpStatus.NOT_FOUND,
@@ -25,8 +25,18 @@ export class DomainExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
 
+    if (exception instanceof VersionConflictError) {
+      response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json(exception.view);
+      return;
+    }
+
     if (exception instanceof DomainError) {
       response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json({ code: exception.code });
+      return;
+    }
+
+    if (exception instanceof HttpException) {
+      response.status(exception.getStatus()).json(exception.getResponse());
       return;
     }
 

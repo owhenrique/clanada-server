@@ -1,6 +1,7 @@
 import type { ArgumentsHost } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
-import { DomainError, type DomainErrorCode } from "./domain-error";
+import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
 import { DomainExceptionFilter } from "./domain-exception.filter";
 
 type MockHost = {
@@ -56,6 +57,31 @@ describe("DomainExceptionFilter", () => {
 
     expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith({ code: "MATCH_NOT_FOUND" });
+  });
+
+  it("CEN-16/17: maps VersionConflictError to HTTP 412 with the raw MatchView (no error-code wrapper)", () => {
+    const filter = new DomainExceptionFilter();
+    const { host, status, json } = createMockHost();
+    const view = { code: "AB23CD45", version: 3, status: "DRAFT" };
+
+    filter.catch(new VersionConflictError(view), host);
+
+    expect(status).toHaveBeenCalledWith(412);
+    expect(json).toHaveBeenCalledWith(view);
+  });
+
+  it("CEN-3/CEN-15: passes through a NestJS HttpException with its own status and body (e.g. ValidationPipe/@IfMatch failures)", () => {
+    const filter = new DomainExceptionFilter();
+    const { host, status, json } = createMockHost();
+
+    filter.catch(new BadRequestException("If-Match header must be a non-negative integer"), host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      message: "If-Match header must be a non-negative integer",
+      error: "Bad Request",
+      statusCode: 400,
+    });
   });
 
   it("maps an unexpected error to 500 with code INTERNAL", () => {

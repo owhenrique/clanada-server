@@ -7,8 +7,8 @@ import {
 import { afterAll, beforeAll } from "vitest";
 import { validateEnv, type Env } from "../src/infra/config/env.schema";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
-import { PrismaMatchesRepository } from "../src/modules/matches/prisma-matches.repository";
-import { runMatchesRepositoryContract } from "../src/modules/matches/matches-repository-contract-test";
+import { PrismaMatchesRepository } from "../src/modules/matches/repositories/prisma-matches.repository";
+import { runMatchesRepositoryContract } from "../src/modules/matches/repositories/matches-repository-contract-test";
 
 let container: StartedPostgreSqlContainer;
 let prisma: PrismaService;

@@ -14,6 +14,191 @@
           "health"
         ]
       }
+    },
+    "/api/matches": {
+      "post": {
+        "operationId": "MatchesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}": {
+      "get": {
+        "operationId": "MatchesController_get",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/reshuffle": {
+      "post": {
+        "operationId": "MatchesController_reshuffle",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/swap": {
+      "post": {
+        "operationId": "MatchesController_swap",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwapPlayersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/start": {
+      "post": {
+        "operationId": "MatchesController_start",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
     }
   },
   "info": {
@@ -25,6 +210,192 @@
   "tags": [],
   "servers": [],
   "components": {
-    "schemas": {}
+    "schemas": {
+      "MatchConfigDto": {
+        "type": "object",
+        "properties": {
+          "teamSize": {
+            "type": "number",
+            "minimum": 2
+          },
+          "colors": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "enum": [
+                "verde",
+                "vermelho",
+                "azul",
+                "amarelo",
+                "laranja",
+                "preto",
+                "branco",
+                "rosa",
+                "roxo",
+                "cinza"
+              ]
+            }
+          },
+          "gameMinutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 60
+          }
+        },
+        "required": [
+          "teamSize",
+          "colors",
+          "gameMinutes"
+        ]
+      },
+      "CreateMatchDto": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/MatchConfigDto"
+          },
+          "playerNames": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "config",
+          "playerNames"
+        ]
+      },
+      "PlayerView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "TeamView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerView"
+            }
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "gameStreak": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "players",
+          "color",
+          "gameStreak"
+        ]
+      },
+      "TimerView": {
+        "type": "object",
+        "properties": {
+          "startedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "elapsedMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "startedAt",
+          "elapsedMs"
+        ]
+      },
+      "MatchView": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ENDED"
+            ]
+          },
+          "version": {
+            "type": "number"
+          },
+          "config": {
+            "$ref": "#/components/schemas/MatchConfigDto"
+          },
+          "teams": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamView"
+            }
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerView"
+            }
+          },
+          "timer": {
+            "$ref": "#/components/schemas/TimerView"
+          },
+          "serverNow": {
+            "type": "string"
+          },
+          "canUndo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "version",
+          "config",
+          "teams",
+          "queue",
+          "timer",
+          "serverNow",
+          "canUndo"
+        ]
+      },
+      "SwapPlayersDto": {
+        "type": "object",
+        "properties": {
+          "playerAId": {
+            "type": "string"
+          },
+          "playerBId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerAId",
+          "playerBId"
+        ]
+      }
+    }
   }
 }

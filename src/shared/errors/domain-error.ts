@@ -21,3 +21,10 @@ export class DomainError extends Error {
     this.code = code;
   }
 }
+
+export class VersionConflictError<TView extends object = object> extends DomainError {
+  constructor(readonly view: TView) {
+    super("VERSION_CONFLICT");
+    this.name = "VersionConflictError";
+  }
+}

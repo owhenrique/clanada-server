@@ -22,11 +22,29 @@ src/
   domain/
     match/                    # DOMÍNIO PURO — sem Nest, sem I/O (o lint barra imports fora do domínio)
   modules/
-    health/                   # health.controller/service/module
-    matches/                  # aplicação + HTTP + persistência da sessão (chega no S6+)
+    health/                   # módulo pequeno (2 arquivos) — sem subpastas por camada
+      health.controller.ts
+      health.service.ts
+      health.module.ts
+    matches/                  # aplicação + HTTP + persistência da sessão — em pastas por camada
+      matches.module.ts
+      controllers/
+        matches.controller.ts
+      services/
+        matches.service.ts
+        match-view.ts
+      repositories/
+        matches.repository.ts       # abstract class (porta)
+        prisma-matches.repository.ts
+        in-memory-matches.repository.ts
+        match-code.ts
+        event-codec.ts
+      dto/
   generated/prisma/           # client Prisma gerado — não editar, não versionar
 test/                         # e2e + setup Testcontainers
 ```
+
+**Pastas por camada dentro de um módulo** (`controllers/`, `services/`, `repositories/`, `dto/`): o arquivo mantém o prefixo do módulo (`matches.controller.ts`, não só `controller.ts`) para continuar autoexplicativo fora do contexto da pasta. Um módulo pequeno (só controller + service, ex. `health/`) não precisa das subpastas — a convenção vale a partir do ponto em que o módulo ganha repositório próprio.
 
 ## Camadas de um módulo HTTP
 
