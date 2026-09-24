@@ -14,9 +14,11 @@ import {
   type Event,
   type MatchConfig,
 } from "../../../domain/match";
+import { GameHistoryRepository } from "../repositories/game-history.repository";
 import { generateMatchCode } from "../repositories/match-code";
 import { MatchCodeCollisionError, MatchesRepository, type StoredMatch } from "../repositories/matches.repository";
 import { LookupMissLimiter } from "./lookup-miss-limiter";
+import { toGameView, type GameView } from "./game-view";
 import { toMatchView, type MatchView } from "./match-view";
 import { applyTimerAction, type TimerAction } from "./timer";
 import { findUndoableTarget } from "./undoable-target";
@@ -40,6 +42,7 @@ export class MatchesService {
     private readonly idGenerator: IdGenerator,
     private readonly randomSource: RandomSource,
     private readonly lookupMissLimiter: LookupMissLimiter,
+    private readonly gameHistory: GameHistoryRepository,
     @InjectPinoLogger(MatchesService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -77,6 +80,16 @@ export class MatchesService {
   }
 
   async get(code: string, clientIp: string): Promise<MatchView> {
+    return this.buildView(await this.lookup(code, clientIp));
+  }
+
+  async listGames(code: string, clientIp: string): Promise<GameView[]> {
+    const stored = await this.lookup(code, clientIp);
+    const records = await this.gameHistory.listByMatchId(stored.id);
+    return records.map(toGameView);
+  }
+
+  private async lookup(code: string, clientIp: string): Promise<StoredMatch> {
     if (this.lookupMissLimiter.isBlocked(clientIp)) {
       throw new DomainError("TOO_MANY_LOOKUPS");
     }
@@ -85,7 +98,7 @@ export class MatchesService {
       this.lookupMissLimiter.recordMiss(clientIp);
       throw new DomainError("MATCH_NOT_FOUND");
     }
-    return this.buildView(stored);
+    return stored;
   }
 
   async timer(code: string, expectedVersion: number, timerAction: TimerAction): Promise<MatchView> {

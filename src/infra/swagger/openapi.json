@@ -82,6 +82,42 @@
         ]
       }
     },
+    "/api/matches/{code}/games": {
+      "get": {
+        "operationId": "MatchesController_listGames",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameView"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
     "/api/matches/{code}/reshuffle": {
       "post": {
         "operationId": "MatchesController_reshuffle",
@@ -911,6 +947,71 @@
           "timer",
           "serverNow",
           "canUndo"
+        ]
+      },
+      "GameTeamView": {
+        "type": "object",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerView"
+            }
+          }
+        },
+        "required": [
+          "teamId",
+          "color",
+          "players"
+        ]
+      },
+      "GameView": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "number"
+          },
+          "seq": {
+            "type": "number"
+          },
+          "playedAt": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "win",
+              "penalties",
+              "draw"
+            ]
+          },
+          "winnerTeamId": {
+            "type": "string",
+            "nullable": true
+          },
+          "teams": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameTeamView"
+            }
+          }
+        },
+        "required": [
+          "number",
+          "seq",
+          "playedAt",
+          "outcome",
+          "winnerTeamId",
+          "teams"
         ]
       },
       "SwapPlayersDto": {

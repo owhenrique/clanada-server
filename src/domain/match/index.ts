@@ -22,6 +22,8 @@ export type { Event } from "./events";
 export { UNDOABLE_EVENTS } from "./events";
 export { applyEvent } from "./apply-event";
 export { replay } from "./replay";
+export { projectGameHistory } from "./game-history";
+export type { GameOutcome, GameRecord, GameTeamRecord, HistoryEvent } from "./game-history";
 export { assertValidState, InvariantViolation } from "./invariants";
 export type { InvariantRule } from "./invariants";
 export { decide } from "./commands";

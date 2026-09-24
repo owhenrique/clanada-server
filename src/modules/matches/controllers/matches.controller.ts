@@ -16,6 +16,7 @@ import { JoinPlayerDto } from "../dto/join-player.dto";
 import { LeaveQueryDto } from "../dto/leave-query.dto";
 import { LoserTeamDto } from "../dto/loser-team.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
+import { GameView } from "../services/game-view";
 import { MatchView, PenaltiesRequiredView } from "../services/match-view";
 import { MatchesService } from "../services/matches.service";
 
@@ -37,6 +38,12 @@ export class MatchesController {
   @ApiOkResponse({ type: MatchView })
   get(@Param("code") code: string, @Ip() clientIp: string): Promise<MatchView> {
     return this.matchesService.get(code, clientIp);
+  }
+
+  @Get(":code/games")
+  @ApiOkResponse({ type: [GameView] })
+  listGames(@Param("code") code: string, @Ip() clientIp: string): Promise<GameView[]> {
+    return this.matchesService.listGames(code, clientIp);
   }
 
   @Post(":code/reshuffle")

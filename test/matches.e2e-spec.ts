@@ -3,6 +3,7 @@ import type { INestApplication } from "@nestjs/common";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { GameView } from "../src/modules/matches/services/game-view";
 import type { MatchView } from "../src/modules/matches/services/match-view";
 
 type HttpServer = Parameters<typeof request>[0];
@@ -354,6 +355,50 @@ describe("Matches API (e2e)", () => {
 
     expect(response.status).toBe(422);
     expect(response.body).toEqual({ code: "INVALID_STATUS" });
+  });
+
+  it("F3 CEN-7: GET /api/matches/:code/games returns only the active games, in seq order", async () => {
+    const server = httpServerOf(app);
+    const created = viewOf(await request(server).post("/api/matches").send(createBody));
+    const code = created.code;
+    const started = viewOf(
+      await request(server).post(`/api/matches/${code}/start`).set("If-Match", String(created.version)).send(),
+    );
+    const winnerId = started.teams[0]?.id;
+    const loserId = started.teams[1]?.id;
+    const won = viewOf(
+      await request(server)
+        .post(`/api/matches/${code}/games/win`)
+        .set("If-Match", String(started.version))
+        .send({ loserTeamId: loserId }),
+    );
+    const undone = viewOf(
+      await request(server).post(`/api/matches/${code}/undo`).set("If-Match", String(won.version)).send(),
+    );
+    const decided = viewOf(
+      await request(server)
+        .post(`/api/matches/${code}/games/penalties`)
+        .set("If-Match", String(undone.version))
+        .send({ loserTeamId: loserId }),
+    );
+    await request(server).post(`/api/matches/${code}/end`).set("If-Match", String(decided.version)).send();
+
+    const response = await request(server).get(`/api/matches/${code}/games`);
+    const games = response.body as GameView[];
+
+    expect(response.status).toBe(200);
+    expect(games).toHaveLength(1);
+    expect(games[0]).toMatchObject({ number: 1, outcome: "penalties", winnerTeamId: winnerId });
+    expect(games[0]?.teams.map((team) => team.teamId)).toEqual([winnerId, loserId]);
+    expect(games[0]?.teams[0]?.players).toEqual(started.teams[0]?.players);
+    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
+  });
+
+  it("F3 CEN-8: GET /api/matches/:code/games with an unknown code returns 404", async () => {
+    const response = await request(httpServerOf(app)).get("/api/matches/ZZZZZZZZ/games");
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: "MATCH_NOT_FOUND" });
   });
 
   it("CEN-16: Swagger UI is served outside production", async () => {

@@ -7,6 +7,7 @@ import type { Clock } from "../../../shared/ports/clock";
 import type { IdGenerator } from "../../../shared/ports/id-generator";
 import type { RandomSource } from "../../../shared/ports/random-source";
 import type { MatchConfig } from "../../../domain/match";
+import { EventLogGameHistoryRepository } from "../repositories/event-log-game-history.repository";
 import { InMemoryMatchesRepository } from "../repositories/in-memory-matches.repository";
 import {
   MatchCodeCollisionError,
@@ -98,6 +99,7 @@ function makeService(overrides?: {
     idGenerator,
     random,
     limiter,
+    new EventLogGameHistoryRepository(repository),
     logger as unknown as PinoLogger,
   );
   return { service, repository, logger };
@@ -1129,5 +1131,37 @@ describe("MatchesService timer (S8)", () => {
 
     const view = await service.get(existing.code, "2.2.2.2");
     expect(view.code).toBe(existing.code);
+  });
+
+  it("F3 CEN-7 (unit): listGames projects the active games of a match", async () => {
+    const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames: sixNames });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const loserId = started.teams[1]?.id;
+    if (loserId === undefined) {
+      throw new Error("fixture is missing teams");
+    }
+    const won = asView(await service.execute(started.code, started.version, { type: "win", loserTeamId: loserId }));
+    const undone = await service.undo(won.code, won.version);
+    await service.execute(undone.code, undone.version, { type: "penalties", loserTeamId: loserId });
+
+    const games = await service.listGames(created.code, CLIENT_IP);
+
+    expect(games).toHaveLength(1);
+    expect(games[0]).toMatchObject({
+      number: 1,
+      outcome: "penalties",
+      winnerTeamId: started.teams[0]?.id,
+    });
+    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
+    expect(games[0]?.teams.map((team) => team.players)).toEqual([started.teams[0]?.players, started.teams[1]?.players]);
+  });
+
+  it("F3 CEN-8 (unit): listGames with an unknown code throws MATCH_NOT_FOUND and counts a lookup miss", async () => {
+    const { service } = makeService({ lookupMissLimit: 1 });
+
+    await expect(service.listGames("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.listGames("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "TOO_MANY_LOOKUPS" });
   });
 });
