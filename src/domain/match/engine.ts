@@ -1,15 +1,91 @@
-import type { MatchState, Player } from "./types";
-import type { Event } from "./events";
-import { requireState } from "./require-state";
-import { idsFrom } from "./id-factory";
-import { formInitialState } from "./rules/formation";
-import { flattenPlayers } from "./rules/flatten";
-import { applyGameResult } from "./rules/game-result";
-import { applyDraw } from "./rules/draw";
-import { playerJoins } from "./rules/join";
-import { playerLeaves, playerLeavesWithReducedTeamSize } from "./rules/leave";
-import { swapPlayers } from "./rules/swap";
-import { changeTeamSize } from "./rules/team-size";
+import { DomainError } from "../../shared/errors/domain-error";
+import { requireState, idsFrom } from "./support";
+import { formInitialState, flattenPlayers, decideCreate, decideReshuffle } from "./lineup";
+import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
+import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
+import {
+  playerJoins,
+  playerLeaves,
+  playerLeavesWithReducedTeamSize,
+  decideJoin,
+  decideLeave,
+} from "./roster";
+import type {
+  MatchState,
+  MatchStatus,
+  Player,
+  Event,
+  Command,
+  CommandContext,
+  DecideResult,
+} from "./model";
+
+export function decideStart(
+  state: MatchState | null,
+  _command: Extract<Command, { type: "start" }>,
+  _ctx: CommandContext,
+): DecideResult {
+  const current = requireState(state);
+  if (current.teams.length < 2) {
+    throw new DomainError("NOT_ENOUGH_TEAMS");
+  }
+  return { event: { type: "MATCH_STARTED" } };
+}
+
+export function decideEnd(
+  state: MatchState | null,
+  _command: Extract<Command, { type: "end" }>,
+  _ctx: CommandContext,
+): DecideResult {
+  requireState(state);
+  return { event: { type: "MATCH_ENDED" } };
+}
+
+type CommandHandler = (
+  state: MatchState | null,
+  command: Command,
+  ctx: CommandContext,
+) => DecideResult;
+
+const commandHandlers: Record<Command["type"], CommandHandler> = {
+  create: decideCreate as CommandHandler,
+  reshuffle: decideReshuffle as CommandHandler,
+  swap: decideSwap as CommandHandler,
+  start: decideStart as CommandHandler,
+  win: decideWin as CommandHandler,
+  draw: decideDraw as CommandHandler,
+  penalties: decidePenalties as CommandHandler,
+  join: decideJoin as CommandHandler,
+  leave: decideLeave as CommandHandler,
+  changeTeamSize: decideChangeTeamSize as CommandHandler,
+  end: decideEnd as CommandHandler,
+};
+
+const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
+  create: null,
+  reshuffle: ["DRAFT"],
+  swap: ["DRAFT", "ACTIVE"],
+  start: ["DRAFT"],
+  win: ["ACTIVE"],
+  draw: ["ACTIVE"],
+  penalties: ["ACTIVE"],
+  join: ["ACTIVE"],
+  leave: ["ACTIVE"],
+  changeTeamSize: ["ACTIVE"],
+  end: ["ACTIVE"],
+};
+
+export function decide(
+  state: MatchState | null,
+  command: Command,
+  ctx: CommandContext,
+): DecideResult {
+  const allowed = allowedStatus[command.type];
+  if (allowed !== null && (state === null || !allowed.includes(state.status))) {
+    throw new DomainError("INVALID_STATUS");
+  }
+  return commandHandlers[command.type](state, command, ctx);
+}
 
 function reorderByIds(players: readonly Player[], order: readonly string[]): Player[] {
   const byId = new Map(players.map((player) => [player.id, player]));
@@ -114,7 +190,7 @@ type HandlerMap = {
   ) => MatchState;
 };
 
-const handlers: HandlerMap = {
+const eventHandlers: HandlerMap = {
   MATCH_CREATED: handleMatchCreated,
   RESHUFFLED: handleReshuffled,
   PLAYERS_SWAPPED: handlePlayersSwapped,
@@ -128,9 +204,20 @@ const handlers: HandlerMap = {
 };
 
 export function applyEvent(state: MatchState | null, event: Event): MatchState {
-  const handler = handlers[event.type] as (
+  const handler = eventHandlers[event.type] as (
     state: MatchState | null,
     event: Event,
   ) => MatchState;
   return handler(state, event);
+}
+
+export function replay(events: readonly Event[]): MatchState {
+  const [first, ...rest] = events;
+  if (first === undefined || first.type !== "MATCH_CREATED") {
+    throw new Error("invariant: replay requires MATCH_CREATED as the first event");
+  }
+  return rest.reduce<MatchState>(
+    (state, event) => applyEvent(state, event),
+    applyEvent(null, first),
+  );
 }

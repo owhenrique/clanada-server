@@ -17,7 +17,7 @@ async function restrictedImportMessages(code: string, filePath: string): Promise
 
 describe("CEN-3: lint blocks a Nest import inside the domain", () => {
   it("flags @nestjs/common added to a domain file", async () => {
-    const filePath = path.join(cwd, "src/domain/match/rules/formation.ts");
+    const filePath = path.join(cwd, "src/domain/match/lineup.ts");
     const original = readFileSync(filePath, "utf-8");
     const code = `import { Injectable } from "@nestjs/common";\n${original}`;
 
@@ -37,7 +37,7 @@ describe("CEN-4: lint blocks Prisma, node:*, generated/, infra/ and modules/ imp
   ];
 
   it.each(forbiddenImports)("flags %s", async (importLine) => {
-    const filePath = path.join(cwd, "src/domain/match/rules/formation.ts");
+    const filePath = path.join(cwd, "src/domain/match/lineup.ts");
     const original = readFileSync(filePath, "utf-8");
     const code = `${importLine}\n${original}`;
 
@@ -49,7 +49,7 @@ describe("CEN-4: lint blocks Prisma, node:*, generated/, infra/ and modules/ imp
 
 describe("CEN-5: allowed imports inside the domain, and the rule stays scoped to the domain", () => {
   it("does not flag the domain's own import of shared/errors", async () => {
-    const filePath = path.join(cwd, "src/domain/match/commands/start.ts");
+    const filePath = path.join(cwd, "src/domain/match/engine.ts");
     const code = readFileSync(filePath, "utf-8");
 
     const messages = await restrictedImportMessages(code, filePath);

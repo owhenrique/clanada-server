@@ -1,7 +1,4 @@
-export type Player = {
-  id: string;
-  name: string;
-};
+import type { Player } from "./model";
 
 export function normalizeName(value: string): string {
   return value.trim().replace(/\s+/g, " ");

@@ -1,14 +1,107 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent } from "./apply-event";
-import type { Player, MatchConfig, MatchState } from "./types";
-import type { Event } from "./events";
+import { makePlayers } from "./test-fixtures";
+import { DomainError } from "../../shared/errors/domain-error";
+import type { CommandContext, MatchState, Event, Player, MatchConfig } from "./model";
+import { decide, decideStart, decideEnd, applyEvent, replay } from "./engine";
+import { formInitialState } from "./lineup";
 
-function makePlayers(count: number): Player[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `p${index}`,
-    name: `P${index}`,
-  }));
+function stateWithStatus(status: MatchState["status"]): MatchState {
+  return {
+    ...formInitialState(
+      makePlayers(10),
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      (i) => `t${i}`,
+    ),
+    status,
+  };
 }
+
+describe("CEN-3/CEN-19: decide — status permitido", () => {
+  const ctx: CommandContext = { random: () => 0.9, nextId: () => "n0", timerRunning: false };
+
+  it("CEN-3: rejects reshuffle outside DRAFT", () => {
+    const state = stateWithStatus("ACTIVE");
+    try {
+      decide(state, { type: "reshuffle" }, ctx);
+      throw new Error("expected decide to throw");
+    } catch (error) {
+      expect((error as DomainError).code).toBe("INVALID_STATUS");
+    }
+  });
+
+  it("CEN-19: rejects a command outside its allowed status (join after ENDED)", () => {
+    const state = stateWithStatus("ENDED");
+    try {
+      decide(state, { type: "join", name: "X" }, ctx);
+      throw new Error("expected decide to throw");
+    } catch (error) {
+      expect((error as DomainError).code).toBe("INVALID_STATUS");
+    }
+  });
+
+  it("create needs no prior state and is not subject to a status check", () => {
+    const result = decide(
+      null,
+      {
+        type: "create",
+        playerNames: ["A", "B"],
+        config: { teamSize: 1, colors: ["verde"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      },
+      ctx,
+    );
+    expect("event" in result).toBe(true);
+  });
+
+  it("dispatches to the matching handler when the status is allowed", () => {
+    const state = stateWithStatus("DRAFT");
+    const result = decide(state, { type: "start" }, ctx);
+    expect(result).toEqual({ event: { type: "MATCH_STARTED" } });
+  });
+});
+
+const ctx: CommandContext = { random: () => 0, nextId: () => "unused", timerRunning: false };
+
+describe("CEN-7/CEN-8: decideStart", () => {
+  it("CEN-7: rejects starting with fewer than 2 teams", () => {
+    const state = formInitialState(
+      makePlayers(8),
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      (i) => `t${i}`,
+    );
+    expect(state.teams).toHaveLength(1);
+    try {
+      decideStart(state, { type: "start" }, ctx);
+      throw new Error("expected decideStart to throw");
+    } catch (error) {
+      expect((error as DomainError).code).toBe("NOT_ENOUGH_TEAMS");
+    }
+  });
+
+  it("CEN-8: produces MATCH_STARTED with 2 or more teams", () => {
+    const state = formInitialState(
+      makePlayers(10),
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      (i) => `t${i}`,
+    );
+    const result = decideStart(state, { type: "start" }, ctx);
+    expect(result).toEqual({ event: { type: "MATCH_STARTED" } });
+  });
+});
+
+describe("CEN-18: decideEnd", () => {
+  it("produces MATCH_ENDED", () => {
+    const state = {
+      ...formInitialState(
+        makePlayers(10),
+        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+        (i) => `t${i}`,
+      ),
+      status: "ACTIVE" as const,
+    };
+    const result = decideEnd(state, { type: "end" }, ctx);
+    expect(result).toEqual({ event: { type: "MATCH_ENDED" } });
+  });
+});
 
 const config: MatchConfig = {
   teamSize: 5,
@@ -185,5 +278,30 @@ describe("apply-event: um teste por evento", () => {
     const state = baseState();
     const next = applyEvent(state, { type: "MATCH_ENDED" });
     expect(next.status).toBe("ENDED");
+  });
+});
+
+describe("CEN-27: replay is deterministic", () => {
+  it("throws when the first event is not MATCH_CREATED", () => {
+    expect(() =>
+      replay([{ type: "MATCH_STARTED" }]),
+    ).toThrow(/MATCH_CREATED/);
+  });
+
+  it("running the same 8-event history twice yields the same state", () => {
+    const events: Event[] = [
+      { type: "MATCH_CREATED", config, players: makePlayers(20), teamIds: ["t0", "t1", "t2", "t3"] },
+      { type: "RESHUFFLED", order: makePlayers(20).map((p) => p.id), teamIds: ["t4", "t5", "t6", "t7"] },
+      { type: "MATCH_STARTED" },
+      { type: "GAME_WON", loserTeamId: "t5", decidedBy: "match", newTeamIds: [] },
+      { type: "GAME_WON", loserTeamId: "t6", decidedBy: "match", newTeamIds: [] },
+      { type: "GAME_WON", loserTeamId: "t7", decidedBy: "match", newTeamIds: [] },
+      { type: "PLAYER_JOINED", player: { id: "pNovo", name: "Novo" }, newTeamIds: [] },
+      { type: "PLAYERS_SWAPPED", playerAId: "p0", playerBId: "pNovo" },
+    ];
+
+    const first = replay(events);
+    const second = replay(events);
+    expect(second).toEqual(first);
   });
 });

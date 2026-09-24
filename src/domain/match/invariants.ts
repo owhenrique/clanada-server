@@ -1,4 +1,4 @@
-import type { MatchState, Team } from "./types";
+import type { MatchState, Team } from "./model";
 
 export type InvariantRule =
   | "DUPLICATE_PLAYER"

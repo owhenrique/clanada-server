@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shuffle } from "./shuffle";
+import { shuffle } from "./support";
 
 function seq(values: number[]): () => number {
   let index = 0;

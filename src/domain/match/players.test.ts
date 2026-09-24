@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { duplicateGroups, hasUnresolvedDuplicates } from "./players";
-import type { Player } from "./types";
+import type { Player } from "./model";
 
 describe("CEN-10: duplicateGroups", () => {
   it("finds no groups when every name is unique", () => {

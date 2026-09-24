@@ -1,6 +1,27 @@
-import type { MatchState } from "../types";
-import { assignBibs, usedColors } from "./bibs";
-import { at, compactQueue } from "./queue";
+import { DomainError } from "../../shared/errors/domain-error";
+import { at, requireState, recordingIdFactory } from "./support";
+import { normalizeName } from "./players";
+import { compactQueue, assignBibs, usedColors } from "./lineup";
+import { locatePlayer } from "./team-edits";
+import type { Player, MatchState, Command, CommandContext, DecideResult } from "./model";
+
+export function playerJoins(
+  state: MatchState,
+  player: Player,
+  createTeamId: () => string,
+): MatchState {
+  const compacted = compactQueue(
+    state.teams,
+    [...state.queue, player],
+    state.config.teamSize,
+    createTeamId,
+  );
+  return {
+    ...state,
+    teams: assignBibs(compacted.teams, state.config.colors, usedColors(state.teams)),
+    queue: compacted.queue,
+  };
+}
 
 export function findDonorIndex(
   teamCount: number,
@@ -115,5 +136,73 @@ export function playerLeavesWithReducedTeamSize(
     config,
     teams: assignBibs(compacted.teams, state.config.colors, usedColors(state.teams)),
     queue: compacted.queue,
+  };
+}
+
+export function decideJoin(
+  state: MatchState | null,
+  command: Extract<Command, { type: "join" }>,
+  ctx: CommandContext,
+): DecideResult {
+  const current = requireState(state);
+  const player = { id: ctx.nextId(), name: normalizeName(command.name) };
+  const factory = recordingIdFactory(ctx.nextId);
+  playerJoins(current, player, factory.createId);
+  return {
+    event: {
+      type: "PLAYER_JOINED",
+      player,
+      newTeamIds: factory.ids,
+    },
+  };
+}
+
+function hasDonor(state: MatchState, affectedIndex: number): boolean {
+  return findDonorIndex(state.teams.length, affectedIndex) !== null;
+}
+
+export function decideLeave(
+  state: MatchState | null,
+  command: Extract<Command, { type: "leave" }>,
+  ctx: CommandContext,
+): DecideResult {
+  const current = requireState(state);
+  const location = locatePlayer(current, command.playerId);
+  if (location === null) {
+    throw new DomainError("PLAYER_NOT_FOUND");
+  }
+  if (ctx.timerRunning && location.kind === "team" && location.teamIndex < 2) {
+    throw new DomainError("PLAYER_LOCKED");
+  }
+
+  const needsDonor =
+    location.kind === "team" &&
+    current.queue.length === 0 &&
+    !hasDonor(current, location.teamIndex);
+
+  if (!needsDonor) {
+    return {
+      event: {
+        type: "PLAYER_LEFT",
+        playerId: command.playerId,
+        fallback: "none",
+        newTeamIds: [],
+      },
+    };
+  }
+
+  if (command.fallback !== "reduce-team-size") {
+    throw new DomainError("NO_DONOR_AVAILABLE");
+  }
+
+  const factory = recordingIdFactory(ctx.nextId);
+  playerLeavesWithReducedTeamSize(current, command.playerId, factory.createId);
+  return {
+    event: {
+      type: "PLAYER_LEFT",
+      playerId: command.playerId,
+      fallback: "reduce-team-size",
+      newTeamIds: factory.ids,
+    },
   };
 }

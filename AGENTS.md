@@ -21,6 +21,16 @@ src/
     http/                     # decorator @IfMatch()
   domain/
     match/                    # DOMÍNIO PURO — sem Nest, sem I/O (o lint barra imports fora do domínio)
+      index.ts                # barrel: única entrada de fora do domínio
+      model.ts                # vocabulário: estado, eventos, comandos, rule toggles
+      support.ts players.ts   # utilitários (at, shuffle, ids) e nomes de jogador
+      lineup.ts               # §1 §7 §8: formação, fila, coletes, criar/novo sorteio
+      game-result.ts          # §2–§4: vitória, empate, pênaltis
+      team-edits.ts           # §10 §11: troca, tamanho do time
+      roster.ts               # §5 §6: entrada e saída
+      engine.ts               # decide (comando → evento) + applyEvent/replay (evento → estado)
+      game-history.ts invariants.ts
+      test-fixtures.ts        # helpers de teste compartilhados (fora do build)
   modules/
     health/                   # módulo pequeno (2 arquivos) — sem subpastas por camada
       health.controller.ts
@@ -60,7 +70,8 @@ Fluxo sempre nesta direção; nunca o inverso.
 
 ## Princípios (SOLID sem cerimônia)
 
-- **Responsabilidade única:** cada regra de domínio num arquivo; controller, service e repository com os papéis da tabela acima.
+- **Responsabilidade única:** em `domain/match`, cada área de regra do `PROJETO.md` num arquivo, com a regra (evento → estado) e o comando (`decideX`) juntos; arquivo de produção até ~250 linhas — passou disso, divida por subassunto. Um arquivo de teste por arquivo de produção (`<conceito>.test.ts`), sem limite de linhas. Controller, service e repository com os papéis da tabela acima.
+- **Sem ciclo no domínio:** cada arquivo só importa os anteriores nesta ordem: `model` → `support` → `players` → `lineup` → `game-result` → `team-edits` → `roster` → `engine` → `game-history` → `invariants` → `index`. De fora, importa-se só pelo `index.ts`.
 - **Aberto/fechado:** mapas tipados `Record<Type, Handler>` para eventos/comandos novos — não mexe nos handlers existentes.
 - **Inversão de dependência:** services dependem de portas (`MatchesRepository`, `Clock`, `IdGenerator`, `RandomSource`) como **abstract class**, nunca tokens de string. Em teste, trocam por fakes/in-memory.
 - **Reuso:** funções auxiliares de domínio exportadas e reaproveitadas entre regras; nunca reimplementadas.

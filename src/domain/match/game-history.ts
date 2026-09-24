@@ -1,6 +1,5 @@
-import type { Event } from "./events";
-import type { MatchState, Player, Team } from "./types";
-import { applyEvent } from "./apply-event";
+import type { Event, MatchState, Player, Team } from "./model";
+import { applyEvent } from "./engine";
 
 export type HistoryEvent = {
   seq: number;

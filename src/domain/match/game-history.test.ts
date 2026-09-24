@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { projectGameHistory, type GameRecord, type HistoryEvent } from "./game-history";
-import type { Event } from "./events";
-import type { MatchConfig, Player } from "./types";
+import type { Event, MatchConfig, Player } from "./model";
 
 const config: MatchConfig = {
   teamSize: 2,
