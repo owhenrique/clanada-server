@@ -13,7 +13,13 @@ export function decideReshuffle(
 ): DecideResult {
   const current = requireState(state);
   const seatedCount = current.teams.reduce((count, team) => count + team.players.length, 0);
-  const order = orderPlayers(flattenPlayers(current), seatedCount, current.config.ruleToggles, ctx.random);
+  const order = orderPlayers(
+    flattenPlayers(current),
+    seatedCount,
+    current.config.teamSize,
+    current.config.ruleToggles,
+    ctx.random,
+  );
   const fullTeams = fullTeamCount(order.length, current.config.teamSize);
   const factory = recordingIdFactory(ctx.nextId);
   for (let i = 0; i < fullTeams; i++) {

@@ -159,3 +159,33 @@ describe("arrival priority on create", () => {
     expect(queueNames(state)).toEqual(["p11"]);
   });
 });
+
+function teamNamesAt(state: MatchState, index: number): string[] {
+  return state.teams[index]?.players.map((player) => player.name) ?? [];
+}
+
+describe("arrival priority puts the first arrivals on the field", () => {
+  it("F6 CEN-1: with three teams, the first 2N play first and the next N form the third team in order", () => {
+    const state = createdState(names(16), arrivalOn, () => 0.3);
+    expect(new Set([...teamNamesAt(state, 0), ...teamNamesAt(state, 1)])).toEqual(new Set(names(10)));
+    expect(teamNamesAt(state, 2)).toEqual(["p11", "p12", "p13", "p14", "p15"]);
+    expect(queueNames(state)).toEqual(["p16"]);
+  });
+
+  it("F6 CEN-2: with two teams, the first 2N play and the rest wait in order", () => {
+    const state = createdState(names(13), arrivalOn, () => 0.3);
+    expect(new Set(teamNames(state))).toEqual(new Set(names(10)));
+    expect(queueNames(state)).toEqual(["p11", "p12", "p13"]);
+  });
+
+  it("F6 CEN-3: shuffles the players who go on the field", () => {
+    const state = createdState(names(16), arrivalOn, () => 0);
+    expect(new Set(teamNamesAt(state, 0))).not.toEqual(new Set(names(5)));
+  });
+
+  it("F6 CEN-5: shuffles everyone when the rule is off", () => {
+    const random = (): number => 0;
+    const state = createdState(names(16), arrivalOff, random);
+    expect([...teamNames(state), ...queueNames(state)]).toEqual(shuffle(names(16), random));
+  });
+});

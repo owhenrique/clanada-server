@@ -106,3 +106,46 @@ describe("arrival priority on reshuffle", () => {
     expect(state.queue.map((player) => player.id)).not.toEqual(["p11"]);
   });
 });
+
+function threeTeamDraft(arrivalPriority: boolean): MatchState {
+  const players = Array.from({ length: 16 }, (_, index) => ({
+    id: `p${index + 1}`,
+    name: `P${index + 1}`,
+  }));
+  return formInitialState(
+    players,
+    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority } },
+    (i) => `t${i}`,
+  );
+}
+
+function reshuffledThree(state: MatchState, random: () => number): MatchState {
+  const ctx: CommandContext = { ...ctxWithIds(["t3", "t4", "t5"]), random };
+  const result = decideReshuffle(state, { type: "reshuffle" }, ctx);
+  if (!("event" in result)) {
+    throw new Error("expected an event");
+  }
+  return applyEvent(state, result.event);
+}
+
+function playerIdsAt(state: MatchState, index: number): string[] {
+  return state.teams[index]?.players.map((player) => player.id) ?? [];
+}
+
+describe("arrival priority reshuffles only the teams on the field", () => {
+  it("F6 CEN-4: keeps the third team and the queue untouched", () => {
+    const state = reshuffledThree(threeTeamDraft(true), () => 0);
+    expect(new Set([...playerIdsAt(state, 0), ...playerIdsAt(state, 1)])).toEqual(new Set(firstTen));
+    expect(new Set(playerIdsAt(state, 0))).not.toEqual(new Set(["p1", "p2", "p3", "p4", "p5"]));
+    expect(playerIdsAt(state, 2)).toEqual(["p11", "p12", "p13", "p14", "p15"]);
+    expect(state.queue.map((player) => player.id)).toEqual(["p16"]);
+  });
+
+  it("F6 CEN-5: shuffles everyone when the rule is off", () => {
+    const draft = threeTeamDraft(false);
+    const random = (): number => 0;
+    const state = reshuffledThree(draft, random);
+    const expected = shuffle(flattenPlayers(draft), random).map((player) => player.id);
+    expect([...teamIds(state), ...state.queue.map((player) => player.id)]).toEqual(expected);
+  });
+});

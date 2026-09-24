@@ -21,7 +21,7 @@ export function decideCreate(
   }
   const config = { ...command.config, ruleToggles: resolveRuleToggles(command.config.ruleToggles) };
   const fullTeams = fullTeamCount(players.length, config.teamSize);
-  const order = orderPlayers(players, fullTeams * config.teamSize, config.ruleToggles, ctx.random);
+  const order = orderPlayers(players, fullTeams * config.teamSize, config.teamSize, config.ruleToggles, ctx.random);
   const factory = recordingIdFactory(ctx.nextId);
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
