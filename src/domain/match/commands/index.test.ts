@@ -16,7 +16,7 @@ function stateWithStatus(status: MatchState["status"]): MatchState {
   return {
     ...formInitialState(
       makePlayers(10),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
       (i) => `t${i}`,
     ),
     status,
@@ -52,7 +52,7 @@ describe("CEN-3/CEN-19: decide — status permitido", () => {
       {
         type: "create",
         playerNames: ["A", "B"],
-        config: { teamSize: 1, colors: ["verde"], gameMinutes: 10 },
+        config: { teamSize: 1, colors: ["verde"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
       },
       ctx,
     );

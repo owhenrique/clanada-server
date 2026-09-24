@@ -19,7 +19,7 @@ function idFactory(prefix: string): () => string {
 
 describe("CEN-8: changeTeamSize reduces the team size", () => {
   it("sends the last N-m players of every team to the queue, in rotation order, then compacts", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = changeTeamSize(state, 3, idFactory("tNew"));
     expect(next).not.toBeNull();
     const result = next as MatchState;
@@ -35,7 +35,7 @@ describe("CEN-8: changeTeamSize reduces the team size", () => {
 
 describe("CEN-9: changeTeamSize increases the team size with enough queue", () => {
   it("fills every team from the front of the queue, in rotation order, without forming a new team", () => {
-    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const state = { ...base, queue: makePlayers(6, "q") };
     const next = changeTeamSize(state, 5, idFactory("tNew"));
     expect(next).not.toBeNull();
@@ -49,7 +49,7 @@ describe("CEN-9: changeTeamSize increases the team size with enough queue", () =
 
 describe("CEN-10: changeTeamSize increases by dissolving teams from the end of the rotation", () => {
   it("dissolves the last team into the queue when there are not enough players to fill everyone", () => {
-    const base = formInitialState(makePlayers(9), { teamSize: 3, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
+    const base = formInitialState(makePlayers(9), { teamSize: 3, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const state = { ...base, queue: makePlayers(1, "q") };
     const next = changeTeamSize(state, 5, idFactory("tNew"));
     expect(next).not.toBeNull();
@@ -61,13 +61,13 @@ describe("CEN-10: changeTeamSize increases by dissolving teams from the end of t
   });
 
   it("rejects when even dissolving everything cannot keep 2 teams", () => {
-    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const result = changeTeamSize(base, 10, idFactory("tNew"));
     expect(result).toBeNull();
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const snapshot = JSON.stringify(state);
     changeTeamSize(state, 3, idFactory("tNew"));
     expect(JSON.stringify(state)).toBe(snapshot);

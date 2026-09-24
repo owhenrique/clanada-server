@@ -29,14 +29,14 @@ describe("findDonorIndex", () => {
 
 describe("CEN-6: playerLeaves", () => {
   it("removes a player who is in the queue", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = playerLeaves(state, "p10");
     expect(next.queue.map((p) => p.id)).toEqual(["p11"]);
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
   });
 
   it("with a queue: the first queued player fills the vacancy", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = playerLeaves(state, "p0");
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p1",
@@ -49,7 +49,7 @@ describe("CEN-6: playerLeaves", () => {
   });
 
   it("CEN-1: without a queue, the donor is the first team off the field, never the on-field opponent", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = playerLeaves(state, "p0");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
@@ -65,7 +65,7 @@ describe("CEN-6: playerLeaves", () => {
   });
 
   it("CEN-2: without a queue, the donor search wraps circularly when the affected team is last in rotation", () => {
-    const state = formInitialState(makePlayers(20), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(20), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = playerLeaves(state, "p15");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "t3"]);
     expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
@@ -79,7 +79,7 @@ describe("CEN-6: playerLeaves", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const snapshot = JSON.stringify(state);
     playerLeaves(state, "p0");
     expect(JSON.stringify(state)).toBe(snapshot);
@@ -88,7 +88,7 @@ describe("CEN-6: playerLeaves", () => {
 
 describe("CEN-4: playerLeavesWithReducedTeamSize", () => {
   it("shrinks teamSize by one and sends the last player of every other team to the queue", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const next = playerLeavesWithReducedTeamSize(state, "p0", () => "tNovo");
     expect(next.config.teamSize).toBe(4);
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
@@ -98,7 +98,7 @@ describe("CEN-4: playerLeavesWithReducedTeamSize", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const snapshot = JSON.stringify(state);
     playerLeavesWithReducedTeamSize(state, "p0", () => "tNovo");
     expect(JSON.stringify(state)).toBe(snapshot);

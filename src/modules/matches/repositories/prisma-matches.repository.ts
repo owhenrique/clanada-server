@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../../shared/errors/domain-error";
 import { PrismaService } from "../../../infra/prisma/prisma.service";
 import { Prisma, type Match as MatchRow } from "../../../generated/prisma/client";
-import { UNDOABLE_EVENTS, type Event, type MatchState } from "../../../domain/match";
+import { UNDOABLE_EVENTS, decodeRuleToggles, type Event, type MatchState } from "../../../domain/match";
 import { decodeEvent, encodeEventPayload } from "./event-codec";
 import {
   MatchCodeCollisionError,
@@ -40,13 +40,18 @@ async function applyVersionGuardedUpdate(
   }
 }
 
+function toSnapshot(value: Prisma.JsonValue): MatchState {
+  const state = value as unknown as MatchState;
+  return { ...state, config: { ...state.config, ruleToggles: decodeRuleToggles(state.config.ruleToggles) } };
+}
+
 function toStoredMatch(row: MatchRow): StoredMatch {
   return {
     id: row.id,
     code: row.code,
     status: row.status,
     version: row.version,
-    snapshot: row.snapshot as unknown as MatchState,
+    snapshot: toSnapshot(row.snapshot),
     timer: { startedAt: row.timerStartedAt, elapsedMs: row.timerElapsedMs },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

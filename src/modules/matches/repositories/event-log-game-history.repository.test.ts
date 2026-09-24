@@ -3,7 +3,7 @@ import type { Event, MatchState } from "../../../domain/match";
 import { EventLogGameHistoryRepository } from "./event-log-game-history.repository";
 import { InMemoryMatchesRepository } from "./in-memory-matches.repository";
 
-const config = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 };
+const config = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
 const players = [
   { id: "p0", name: "Ana" },
   { id: "p1", name: "Beto" },

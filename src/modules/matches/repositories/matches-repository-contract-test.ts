@@ -10,7 +10,7 @@ import {
 import type { CommandContext } from "../../../domain/match/commands/types";
 import type { MatchesRepository } from "./matches.repository";
 
-const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 };
+const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
 
 function ctxFor(ids: readonly string[]): CommandContext {
   let index = 0;

@@ -13,7 +13,7 @@ function makePlayers(count: number): Player[] {
 const config: MatchConfig = {
   teamSize: 5,
   colors: ["verde", "vermelho", "azul"],
-  gameMinutes: 10,
+  gameMinutes: 10, ruleToggles: { arrivalPriority: false }
 };
 
 function created(players: Player[], teamIds: string[]): Event {

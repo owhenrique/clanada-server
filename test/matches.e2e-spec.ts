@@ -3,6 +3,8 @@ import type { INestApplication } from "@nestjs/common";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Prisma } from "../src/generated/prisma/client";
+import { PrismaService } from "../src/infra/prisma/prisma.service";
 import type { GameView } from "../src/modules/matches/services/game-view";
 import type { MatchView } from "../src/modules/matches/services/match-view";
 
@@ -399,6 +401,69 @@ describe("Matches API (e2e)", () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ code: "MATCH_NOT_FOUND" });
+  });
+
+  it.each([
+    ["omitted", undefined, true],
+    ["empty", {}, true],
+    ["off", { arrivalPriority: false }, false],
+  ])("F4 CEN-10: POST /api/matches resolves rule toggles (%s)", async (_label, ruleToggles, expected) => {
+    const server = httpServerOf(app);
+    const created = viewOf(
+      await request(server)
+        .post("/api/matches")
+        .send({ ...createBody, config: { ...createBody.config, ruleToggles } }),
+    );
+
+    const response = await request(server).get(`/api/matches/${created.code}`);
+
+    expect(viewOf(response).config.ruleToggles).toEqual({ arrivalPriority: expected });
+  });
+
+  it.each([
+    ["non-boolean value", { arrivalPriority: "sim" }],
+    ["unknown key", { arrivalPriority: true, bogus: true }],
+  ])("F4 CEN-10: POST /api/matches rejects invalid rule toggles (%s)", async (_label, ruleToggles) => {
+    const response = await request(httpServerOf(app))
+      .post("/api/matches")
+      .send({ ...createBody, config: { ...createBody.config, ruleToggles } });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("F4 CEN-12: a match persisted before rule toggles is read with every rule off", async () => {
+    const server = httpServerOf(app);
+    const names = Array.from({ length: 11 }, (_, index) => `p${index + 1}`);
+    const created = viewOf(
+      await request(server)
+        .post("/api/matches")
+        .send({ config: { ...createBody.config, teamSize: 5 }, playerNames: names }),
+    );
+    const prisma = app.get(PrismaService);
+    const row = await prisma.match.findUniqueOrThrow({ where: { code: created.code } });
+    const snapshot = row.snapshot as Prisma.JsonObject;
+    const { ruleToggles: _dropped, ...legacyConfig } = snapshot.config as Prisma.JsonObject;
+    await prisma.match.update({
+      where: { id: row.id },
+      data: { snapshot: { ...snapshot, config: legacyConfig } },
+    });
+
+    const fetched = await request(server).get(`/api/matches/${created.code}`);
+    expect(viewOf(fetched).config.ruleToggles).toEqual({ arrivalPriority: false });
+
+    let current = created;
+    const queues: string[][] = [];
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const reshuffled = await request(server)
+        .post(`/api/matches/${created.code}/reshuffle`)
+        .set("If-Match", String(current.version))
+        .send();
+      expect(reshuffled.status).toBe(200);
+      current = viewOf(reshuffled);
+      queues.push(current.queue.map((player) => player.name));
+    }
+
+    expect(queues.some((queue) => queue.join() !== "p11")).toBe(true);
   });
 
   it("CEN-16: Swagger UI is served outside production", async () => {

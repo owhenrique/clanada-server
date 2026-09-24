@@ -1,4 +1,4 @@
-import type { Event } from "../../../domain/match";
+import { decodeRuleToggles, type Event } from "../../../domain/match";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -26,7 +26,7 @@ function isPlayerArray(value: unknown): value is { id: string; name: string }[] 
 
 function isMatchConfig(
   value: unknown,
-): value is { teamSize: number; colors: string[]; gameMinutes: number } {
+): value is { teamSize: number; colors: string[]; gameMinutes: number; ruleToggles?: unknown } {
   return (
     isRecord(value) &&
     isNumber(value.teamSize) &&
@@ -46,7 +46,8 @@ const decoders: Record<Event["type"], EventDecoder> = {
     if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
       invalidPayload("MATCH_CREATED");
     }
-    return { type: "MATCH_CREATED", config: p.config, players: p.players, teamIds: p.teamIds };
+    const config = { ...p.config, ruleToggles: decodeRuleToggles(p.config.ruleToggles) };
+    return { type: "MATCH_CREATED", config, players: p.players, teamIds: p.teamIds };
   },
   RESHUFFLED: (p) => {
     if (!isStringArray(p.order) || !isStringArray(p.teamIds)) {

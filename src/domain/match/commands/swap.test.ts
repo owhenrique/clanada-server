@@ -15,7 +15,7 @@ function makePlayers(count: number): Player[] {
 function activeState(): MatchState {
   const state = formInitialState(
     makePlayers(12),
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
     (i) => `t${i}`,
   );
   return { ...state, status: "ACTIVE" };

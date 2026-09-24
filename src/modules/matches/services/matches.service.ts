@@ -12,7 +12,7 @@ import {
   type Command,
   type CommandContext,
   type Event,
-  type MatchConfig,
+  type CreateMatchConfig,
 } from "../../../domain/match";
 import { GameHistoryRepository } from "../repositories/game-history.repository";
 import { generateMatchCode } from "../repositories/match-code";
@@ -46,7 +46,7 @@ export class MatchesService {
     @InjectPinoLogger(MatchesService.name) private readonly logger: PinoLogger,
   ) {}
 
-  async create(input: { config: MatchConfig; playerNames: string[] }): Promise<MatchView> {
+  async create(input: { config: CreateMatchConfig; playerNames: string[] }): Promise<MatchView> {
     try {
       const ctx = this.contextFor(false);
       const result = decide(null, { type: "create", playerNames: input.playerNames, config: input.config }, ctx);

@@ -1,4 +1,5 @@
 import type { MatchConfig } from "../types";
+import type { RuleToggles } from "../rule-toggles";
 import type { Event } from "../events";
 
 export type CommandContext = {
@@ -7,8 +8,12 @@ export type CommandContext = {
   timerRunning: boolean;
 };
 
+export type CreateMatchConfig = Omit<MatchConfig, "ruleToggles"> & {
+  ruleToggles?: Partial<RuleToggles>;
+};
+
 export type Command =
-  | { type: "create"; playerNames: string[]; config: MatchConfig }
+  | { type: "create"; playerNames: string[]; config: CreateMatchConfig }
   | { type: "reshuffle" }
   | { type: "swap"; playerAId: string; playerBId: string }
   | { type: "start" }

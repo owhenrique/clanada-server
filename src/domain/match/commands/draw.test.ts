@@ -19,7 +19,7 @@ function fullTeam(id: string): Team {
 function mkState(teams: Team[]): MatchState {
   return {
     status: "ACTIVE",
-    config: { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10 },
+    config: { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
     teams,
     queue: [],
   };

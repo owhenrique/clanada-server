@@ -6,7 +6,7 @@ import type { MatchConfig, Player } from "./types";
 const config: MatchConfig = {
   teamSize: 5,
   colors: ["verde", "vermelho", "azul"],
-  gameMinutes: 10,
+  gameMinutes: 10, ruleToggles: { arrivalPriority: false }
 };
 
 function makePlayers(count: number): Player[] {

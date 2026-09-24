@@ -18,7 +18,7 @@ import {
 function makeInitialState(): MatchState {
   return formInitialState(
     Array.from({ length: 10 }, (_, index) => ({ id: `p${index}`, name: `P${index}` })),
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
     (index) => `t${index}`,
   );
 }

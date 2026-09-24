@@ -1,5 +1,6 @@
 import { normalizeName, hasUnresolvedDuplicates } from "../players";
-import { shuffle } from "../rules/shuffle";
+import { orderPlayers } from "../rules/arrival-order";
+import { resolveRuleToggles } from "../rule-toggles";
 import { fullTeamCount } from "../rules/formation";
 import { recordingIdFactory } from "../id-factory";
 import { DomainError } from "../../../shared/errors/domain-error";
@@ -18,8 +19,9 @@ export function decideCreate(
   if (hasUnresolvedDuplicates(players)) {
     throw new DomainError("DUPLICATE_PLAYER_NAMES");
   }
-  const order = shuffle(players, ctx.random);
-  const fullTeams = fullTeamCount(order.length, command.config.teamSize);
+  const config = { ...command.config, ruleToggles: resolveRuleToggles(command.config.ruleToggles) };
+  const fullTeams = fullTeamCount(players.length, config.teamSize);
+  const order = orderPlayers(players, fullTeams * config.teamSize, config.ruleToggles, ctx.random);
   const factory = recordingIdFactory(ctx.nextId);
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
@@ -27,7 +29,7 @@ export function decideCreate(
   return {
     event: {
       type: "MATCH_CREATED",
-      config: command.config,
+      config,
       players: order,
       teamIds: factory.ids,
     },

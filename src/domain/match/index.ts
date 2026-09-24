@@ -27,4 +27,6 @@ export type { GameOutcome, GameRecord, GameTeamRecord, HistoryEvent } from "./ga
 export { assertValidState, InvariantViolation } from "./invariants";
 export type { InvariantRule } from "./invariants";
 export { decide } from "./commands";
-export type { Command, CommandContext, DecideResult } from "./commands/types";
+export type { Command, CommandContext, CreateMatchConfig, DecideResult } from "./commands/types";
+export type { RuleToggles } from "./rule-toggles";
+export { decodeRuleToggles } from "./rule-toggles";

@@ -1,5 +1,6 @@
 export type { Player } from "./players";
 import type { Player } from "./players";
+import type { RuleToggles } from "./rule-toggles";
 
 export type Team = {
   id: string;
@@ -14,6 +15,7 @@ export type MatchConfig = {
   teamSize: number;
   colors: string[];
   gameMinutes: number;
+  ruleToggles: RuleToggles;
 };
 
 export type MatchState = {

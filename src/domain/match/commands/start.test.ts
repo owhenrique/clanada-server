@@ -18,7 +18,7 @@ describe("CEN-7/CEN-8: decideStart", () => {
   it("CEN-7: rejects starting with fewer than 2 teams", () => {
     const state = formInitialState(
       makePlayers(8),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
       (i) => `t${i}`,
     );
     expect(state.teams).toHaveLength(1);
@@ -33,7 +33,7 @@ describe("CEN-7/CEN-8: decideStart", () => {
   it("CEN-8: produces MATCH_STARTED with 2 or more teams", () => {
     const state = formInitialState(
       makePlayers(10),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
       (i) => `t${i}`,
     );
     const result = decideStart(state, { type: "start" }, ctx);

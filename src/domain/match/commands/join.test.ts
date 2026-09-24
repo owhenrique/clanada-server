@@ -18,7 +18,7 @@ describe("CEN-14: decideJoin", () => {
     const state = {
       ...formInitialState(
         makePlayers(8),
-        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
         (i) => `t${i}`,
       ),
       status: "ACTIVE" as const,
@@ -50,7 +50,7 @@ describe("CEN-6: decideJoin completing the queue", () => {
     const state = {
       ...formInitialState(
         makePlayers(14),
-        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
+        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
         (i) => `t${i}`,
       ),
       status: "ACTIVE" as const,

@@ -23,7 +23,7 @@ import { LookupMissLimiter } from "./lookup-miss-limiter";
 import { MatchesService } from "./matches.service";
 import type { MatchView } from "./match-view";
 
-const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 };
+const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
 const playerNames = ["Ana", "Beto", "Caio", "Duda"];
 
 function sequentialIds(prefix: string): IdGenerator {
@@ -390,7 +390,7 @@ describe("MatchesService", () => {
   });
 
   it("CEN-14: start is rejected with fewer than 2 teams", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 };
+    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
     const sixNames = ["A", "B", "C", "D", "E", "F"];
     const { service } = makeService();
     const created = await service.create({ config: bigConfig, playerNames: sixNames });
@@ -566,7 +566,7 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-6: join compacts the queue into a new team once it reaches teamSize", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 };
+    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
     const { service } = makeService();
     const created = await service.create({ config: bigConfig, playerNames: fourteenNames });
@@ -665,7 +665,7 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-11: change team size redistributes players and compacts the queue", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 };
+    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
     const { service } = makeService();
     const created = await service.create({ config: bigConfig, playerNames: fourteenNames });
@@ -962,7 +962,7 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-23: undo logs the revoked event type, and rejection logs the domain code", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 };
+    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
     const { service, logger } = makeService();
     const created = await service.create({ config: bigConfig, playerNames: fourteenNames });

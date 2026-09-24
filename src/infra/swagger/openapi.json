@@ -779,6 +779,15 @@
   "servers": [],
   "components": {
     "schemas": {
+      "RuleTogglesDto": {
+        "type": "object",
+        "properties": {
+          "arrivalPriority": {
+            "type": "boolean",
+            "description": "Padrão: true"
+          }
+        }
+      },
       "MatchConfigDto": {
         "type": "object",
         "properties": {
@@ -809,6 +818,9 @@
             "type": "number",
             "minimum": 1,
             "maximum": 60
+          },
+          "ruleToggles": {
+            "$ref": "#/components/schemas/RuleTogglesDto"
           }
         },
         "required": [
@@ -835,6 +847,59 @@
         "required": [
           "config",
           "playerNames"
+        ]
+      },
+      "RuleTogglesViewDto": {
+        "type": "object",
+        "properties": {
+          "arrivalPriority": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "arrivalPriority"
+        ]
+      },
+      "MatchConfigViewDto": {
+        "type": "object",
+        "properties": {
+          "teamSize": {
+            "type": "number",
+            "minimum": 2
+          },
+          "colors": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "enum": [
+                "verde",
+                "vermelho",
+                "azul",
+                "amarelo",
+                "laranja",
+                "preto",
+                "branco",
+                "rosa",
+                "roxo",
+                "cinza"
+              ]
+            }
+          },
+          "gameMinutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "ruleToggles": {
+            "$ref": "#/components/schemas/RuleTogglesViewDto"
+          }
+        },
+        "required": [
+          "teamSize",
+          "colors",
+          "gameMinutes",
+          "ruleToggles"
         ]
       },
       "PlayerView": {
@@ -913,7 +978,7 @@
             "type": "number"
           },
           "config": {
-            "$ref": "#/components/schemas/MatchConfigDto"
+            "$ref": "#/components/schemas/MatchConfigViewDto"
           },
           "teams": {
             "type": "array",

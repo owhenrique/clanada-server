@@ -15,15 +15,15 @@ const teamId = (index: number): string => `t${index}`;
 
 describe("CEN-1: flattenPlayers", () => {
   it("round-trips through formInitialState: teams in order, then the queue", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const flat = flattenPlayers(state);
     expect(flat.map((p) => p.id)).toEqual(makePlayers(12).map((p) => p.id));
-    const rebuilt = formInitialState(flat, { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const rebuilt = formInitialState(flat, { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     expect(rebuilt).toEqual(state);
   });
 
   it("reflects a swap applied before flattening", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 }, teamId);
+    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
     const swapped = swapPlayers(state, "p2", "p11");
     const flat = flattenPlayers(swapped);
     expect(flat.map((p) => p.id)).toEqual([

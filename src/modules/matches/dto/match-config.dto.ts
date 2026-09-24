@@ -1,6 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { ArrayMinSize, ArrayUnique, IsIn, IsInt, Max, Min } from "class-validator";
+import { ApiProperty, ApiPropertyOptional, OmitType } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import { ArrayMinSize, ArrayUnique, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from "class-validator";
 import { BIB_COLOR_KEYS } from "./bib-colors";
+import { RuleTogglesDto, RuleTogglesViewDto } from "./rule-toggles.dto";
 
 export class MatchConfigDto {
   @ApiProperty({ minimum: 2 })
@@ -19,4 +21,15 @@ export class MatchConfigDto {
   @Min(1)
   @Max(60)
   gameMinutes!: number;
+
+  @ApiPropertyOptional({ type: RuleTogglesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RuleTogglesDto)
+  ruleToggles?: RuleTogglesDto;
+}
+
+export class MatchConfigViewDto extends OmitType(MatchConfigDto, ["ruleToggles"] as const) {
+  @ApiProperty({ type: RuleTogglesViewDto })
+  ruleToggles!: RuleTogglesViewDto;
 }

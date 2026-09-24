@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import type { MatchStatus } from "../../../domain/match";
 import type { StoredEvent, StoredMatch } from "../repositories/matches.repository";
-import { MatchConfigDto } from "../dto/match-config.dto";
+import { MatchConfigViewDto } from "../dto/match-config.dto";
 import { findUndoableTarget } from "./undoable-target";
 
 export class PlayerView {
@@ -44,8 +44,8 @@ export class MatchView {
   @ApiProperty()
   version!: number;
 
-  @ApiProperty({ type: MatchConfigDto })
-  config!: MatchConfigDto;
+  @ApiProperty({ type: MatchConfigViewDto })
+  config!: MatchConfigViewDto;
 
   @ApiProperty({ type: [TeamView] })
   teams!: TeamView[];

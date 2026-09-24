@@ -6,7 +6,7 @@ import type { MatchConfig, Player } from "./types";
 const config: MatchConfig = {
   teamSize: 2,
   colors: ["azul", "vermelho", "verde", "amarelo"],
-  gameMinutes: 7,
+  gameMinutes: 7, ruleToggles: { arrivalPriority: false }
 };
 
 const names = ["Ana", "Bia", "Caio", "Duda", "Edu", "Fê", "Gil", "Hugo"];

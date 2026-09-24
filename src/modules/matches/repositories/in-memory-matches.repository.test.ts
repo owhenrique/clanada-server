@@ -12,7 +12,7 @@ runMatchesRepositoryContract(
 describe("InMemoryMatchesRepository.create code collision", () => {
   const snapshot: MatchState = {
     status: "DRAFT",
-    config: { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 },
+    config: { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
     teams: [],
     queue: [],
   };
