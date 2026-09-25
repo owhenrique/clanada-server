@@ -1,7 +1,5 @@
-import type { ConfigService } from "@nestjs/config";
 import { describe, expect, it, vi } from "vitest";
 import type { PinoLogger } from "nestjs-pino";
-import type { Env } from "../../../infra/config/env.schema";
 import { DomainError, VersionConflictError } from "../../../shared/errors/domain-error";
 import type { Clock } from "../../../shared/ports/clock";
 import type { IdGenerator } from "../../../shared/ports/id-generator";
@@ -19,7 +17,6 @@ import {
   type StoredMatch,
   type UpdateTimerInput,
 } from "../repositories/matches.repository";
-import { LookupMissLimiter } from "./lookup-miss-limiter";
 import { MatchesService } from "./matches.service";
 import type { MatchView } from "./match-view";
 
@@ -58,14 +55,6 @@ class MutableClock implements Clock {
   }
 }
 
-function lookupMissLimiter(clock: Clock, limit = 1000): LookupMissLimiter {
-  const values: Partial<Env> = { THROTTLE_LOOKUP_MISS_LIMIT: limit, THROTTLE_TTL_MS: 60000 };
-  const config = { get: (key: keyof Env) => values[key] } as unknown as ConfigService<Env, true>;
-  return new LookupMissLimiter(clock, config);
-}
-
-const CLIENT_IP = "10.0.0.1";
-
 type FakeLogger = {
   info: ReturnType<typeof vi.fn>;
   warn: ReturnType<typeof vi.fn>;
@@ -81,7 +70,6 @@ function makeService(overrides?: {
   idGenerator?: IdGenerator;
   random?: RandomSource;
   logger?: FakeLogger;
-  lookupMissLimit?: number;
 }): {
   service: MatchesService;
   repository: MatchesRepository;
@@ -92,13 +80,11 @@ function makeService(overrides?: {
   const idGenerator = overrides?.idGenerator ?? sequentialIds("id");
   const random = overrides?.random ?? incrementingRandom();
   const logger = overrides?.logger ?? fakeLogger();
-  const limiter = lookupMissLimiter(clock, overrides?.lookupMissLimit);
   const service = new MatchesService(
     repository,
     clock,
     idGenerator,
     random,
-    limiter,
     new EventLogGameHistoryRepository(repository),
     logger as unknown as PinoLogger,
   );
@@ -268,7 +254,7 @@ describe("MatchesService", () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
 
-    const view = await service.get(created.code, CLIENT_IP);
+    const view = await service.get(created.code);
 
     expect(view).toEqual(created);
   });
@@ -276,7 +262,7 @@ describe("MatchesService", () => {
   it("CEN-7 (unit): get throws MATCH_NOT_FOUND for an unknown code", async () => {
     const { service } = makeService();
 
-    await expect(service.get("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.get("ZZZZZZZZ")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
   });
 
   it("CEN-8: reshuffle produces a new order and logs the completed action", async () => {
@@ -1121,18 +1107,6 @@ describe("MatchesService timer (S8)", () => {
     await expect(service.timer("ZZZZZZZZ", 1, "start")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
   });
 
-  it("CEN-13: after the miss limit an IP gets TOO_MANY_LOOKUPS even for an existing code", async () => {
-    const { service } = makeService({ lookupMissLimit: 2 });
-    const existing = await service.create({ config, playerNames });
-
-    await expect(service.get("XXXXXXXX", "1.1.1.1")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
-    await expect(service.get("XXXXXXXX", "1.1.1.1")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
-    await expect(service.get(existing.code, "1.1.1.1")).rejects.toMatchObject({ code: "TOO_MANY_LOOKUPS" });
-
-    const view = await service.get(existing.code, "2.2.2.2");
-    expect(view.code).toBe(existing.code);
-  });
-
   it("F3 CEN-7 (unit): listGames projects the active games of a match", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service } = makeService();
@@ -1146,7 +1120,7 @@ describe("MatchesService timer (S8)", () => {
     const undone = await service.undo(won.code, won.version);
     await service.execute(undone.code, undone.version, { type: "penalties", loserTeamId: loserId });
 
-    const games = await service.listGames(created.code, CLIENT_IP);
+    const games = await service.listGames(created.code);
 
     expect(games).toHaveLength(1);
     expect(games[0]).toMatchObject({
@@ -1158,11 +1132,10 @@ describe("MatchesService timer (S8)", () => {
     expect(games[0]?.teams.map((team) => team.players)).toEqual([started.teams[0]?.players, started.teams[1]?.players]);
   });
 
-  it("F3 CEN-8 (unit): listGames with an unknown code throws MATCH_NOT_FOUND and counts a lookup miss", async () => {
-    const { service } = makeService({ lookupMissLimit: 1 });
+  it("F3 CEN-8 (unit): listGames with an unknown code throws MATCH_NOT_FOUND", async () => {
+    const { service } = makeService();
 
-    await expect(service.listGames("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
-    await expect(service.listGames("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "TOO_MANY_LOOKUPS" });
+    await expect(service.listGames("ZZZZZZZZ")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
   });
 });
 

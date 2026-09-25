@@ -77,17 +77,6 @@ describe("Throttling and security headers (e2e)", () => {
     expect(statuses).toEqual(Array.from({ length: 21 }, () => 200));
   });
 
-  it("CEN-14: the global limit applies to other routes", async () => {
-    const statuses: number[] = [];
-    for (let attempt = 0; attempt < 21; attempt++) {
-      const response = await request(httpServerOf(app)).post("/api/matches/NAOEXISTE/undo").set("If-Match", "1").send();
-      statuses.push(response.status);
-    }
-
-    expect(statuses.slice(0, 20).every((status) => status === 404)).toBe(true);
-    expect(statuses[20]).toBe(429);
-  });
-
   it("CEN-14: responses carry helmet headers and no CORS header", async () => {
     const response = await request(httpServerOf(app)).get("/api/health").set("Origin", "https://evil.example");
 

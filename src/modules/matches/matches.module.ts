@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { MatchesController } from "./controllers/matches.controller";
+import { MatchLookupInterceptor } from "./http/match-lookup.interceptor";
 import { EventLogGameHistoryRepository } from "./repositories/event-log-game-history.repository";
 import { GameHistoryRepository } from "./repositories/game-history.repository";
 import { MatchesRepository } from "./repositories/matches.repository";
@@ -12,6 +13,7 @@ import { MatchesService } from "./services/matches.service";
   providers: [
     MatchesService,
     LookupMissLimiter,
+    MatchLookupInterceptor,
     { provide: MatchesRepository, useClass: PrismaMatchesRepository },
     { provide: GameHistoryRepository, useClass: EventLogGameHistoryRepository },
   ],

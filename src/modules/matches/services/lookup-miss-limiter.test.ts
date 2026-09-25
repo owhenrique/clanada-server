@@ -53,4 +53,40 @@ describe("LookupMissLimiter", () => {
 
     expect(limiter.isBlocked("1.1.1.1")).toBe(false);
   });
+
+  it("F9 CEN-10: at the IP cap, a new IP evicts expired windows first", () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const limiter = new LookupMissLimiter(
+      clock,
+      fakeConfig({ THROTTLE_LOOKUP_MISS_LIMIT: 1, THROTTLE_TTL_MS: 60000 }),
+      3,
+    );
+
+    limiter.recordMiss("A");
+    clock.advance(30000);
+    limiter.recordMiss("B");
+    limiter.recordMiss("C");
+    clock.advance(30000);
+    limiter.recordMiss("D");
+
+    expect(limiter.trackedIps()).toEqual(["B", "C", "D"]);
+  });
+
+  it("F9 CEN-10: at the IP cap with nothing expired, the oldest IP is evicted", () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const limiter = new LookupMissLimiter(
+      clock,
+      fakeConfig({ THROTTLE_LOOKUP_MISS_LIMIT: 1, THROTTLE_TTL_MS: 60000 }),
+      3,
+    );
+
+    limiter.recordMiss("A");
+    limiter.recordMiss("B");
+    limiter.recordMiss("C");
+    limiter.recordMiss("D");
+
+    expect(limiter.trackedIps()).toEqual(["B", "C", "D"]);
+    expect(limiter.isBlocked("A")).toBe(false);
+    expect(limiter.isBlocked("D")).toBe(true);
+  });
 });

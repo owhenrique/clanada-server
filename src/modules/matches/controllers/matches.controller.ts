@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Ip, Param, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseInterceptors } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import {
   ApiCreatedResponse,
@@ -18,11 +18,13 @@ import { LoserTeamDto } from "../dto/loser-team.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
 import { GameView } from "../services/game-view";
 import { MatchView, PenaltiesRequiredView } from "../services/match-view";
+import { MatchLookupInterceptor } from "../http/match-lookup.interceptor";
 import { MatchesService } from "../services/matches.service";
 
 @ApiTags("matches")
 @ApiTooManyRequestsResponse({ description: "Rate limit por IP excedido ou TOO_MANY_LOOKUPS." })
 @SkipThrottle({ create: true })
+@UseInterceptors(MatchLookupInterceptor)
 @Controller("matches")
 export class MatchesController {
   constructor(private readonly matchesService: MatchesService) {}
@@ -36,14 +38,14 @@ export class MatchesController {
 
   @Get(":code")
   @ApiOkResponse({ type: MatchView })
-  get(@Param("code") code: string, @Ip() clientIp: string): Promise<MatchView> {
-    return this.matchesService.get(code, clientIp);
+  get(@Param("code") code: string): Promise<MatchView> {
+    return this.matchesService.get(code);
   }
 
   @Get(":code/games")
   @ApiOkResponse({ type: [GameView] })
-  listGames(@Param("code") code: string, @Ip() clientIp: string): Promise<GameView[]> {
-    return this.matchesService.listGames(code, clientIp);
+  listGames(@Param("code") code: string): Promise<GameView[]> {
+    return this.matchesService.listGames(code);
   }
 
   @Post(":code/reshuffle")

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RandomSource } from "../../../shared/ports/random-source";
-import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, generateMatchCode } from "./match-code";
+import { MATCH_CODE_ALPHABET, MATCH_CODE_LENGTH, generateMatchCode, isMatchCode } from "./match-code";
 
 function fakeRandom(values: readonly number[]): RandomSource {
   let index = 0;
@@ -41,5 +41,16 @@ describe("CEN-11: generateMatchCode", () => {
     const codeB = generateMatchCode(fakeRandom(values));
 
     expect(codeA).toBe(codeB);
+  });
+});
+
+describe("F9 CEN-1: isMatchCode", () => {
+  it("accepts exactly 8 characters of the alphabet and rejects anything else", () => {
+    expect(isMatchCode("M9268NST")).toBe(true);
+    expect(isMatchCode("m9268nst")).toBe(false);
+    expect(isMatchCode("M9268NS")).toBe(false);
+    expect(isMatchCode("M9268NS1")).toBe(false);
+    expect(isMatchCode("M9268NSTX")).toBe(false);
+    expect(isMatchCode("")).toBe(false);
   });
 });
