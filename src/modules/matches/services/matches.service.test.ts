@@ -1165,3 +1165,43 @@ describe("MatchesService timer (S8)", () => {
     await expect(service.listGames("ZZZZZZZZ", CLIENT_IP)).rejects.toMatchObject({ code: "TOO_MANY_LOOKUPS" });
   });
 });
+
+describe("MatchesService setup (F8)", () => {
+  it("F8 CEN-5: setup reconfigures a draft keeping its code", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config: { ...config, teamSize: 5 }, playerNames: ["Ana", "Beto", "Caio"] });
+
+    const view = asView(
+      await service.execute(created.code, created.version, { type: "setup", config, playerNames }),
+    );
+
+    expect(view).toMatchObject({ code: created.code, version: 2, status: "DRAFT" });
+    expect(view.config.teamSize).toBe(2);
+    expect(view.teams).toHaveLength(2);
+  });
+
+  it("F8 CEN-7: setup outside DRAFT is rejected and the match is unchanged", async () => {
+    const { service, repository } = makeService();
+    const created = await service.create({ config, playerNames });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+
+    await expect(
+      service.execute(started.code, started.version, { type: "setup", config, playerNames: ["Xavi", "Yuri"] }),
+    ).rejects.toMatchObject({ code: "INVALID_STATUS" });
+
+    const stored = await repository.findByCode(created.code);
+    expect(stored?.version).toBe(started.version);
+  });
+
+  it("F8 CEN-8: setup with a stale If-Match returns VersionConflictError", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+    await service.execute(created.code, created.version, { type: "reshuffle" });
+
+    const error: unknown = await service
+      .execute(created.code, created.version, { type: "setup", config, playerNames })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(VersionConflictError);
+  });
+});

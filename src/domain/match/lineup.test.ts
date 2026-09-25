@@ -6,12 +6,13 @@ import {
   orderPlayers,
   decideCreate,
   decideReshuffle,
+  decideSetup,
 } from "./lineup";
 import { shuffle } from "./support";
 import { swapPlayers } from "./team-edits";
-import type { Player, CommandContext, CreateMatchConfig, MatchConfig, MatchState } from "./model";
+import type { Player, CommandContext, CreateMatchConfig, Event, MatchConfig, MatchState } from "./model";
 import { DomainError } from "../../shared/errors/domain-error";
-import { applyEvent } from "./engine";
+import { applyEvent, replay } from "./engine";
 
 describe("CEN-1: formInitialState", () => {
   it("forms as many full teams as possible", () => {
@@ -469,5 +470,89 @@ describe("arrival priority reshuffles only the teams on the field", () => {
     const state = reshuffledThree(draft, random);
     const expected = shuffle(flattenPlayers(draft), random).map((player) => player.id);
     expect([...teamIds(state), ...state.queue.map((player) => player.id)]).toEqual(expected);
+  });
+});
+
+function sequenceCtx(ids: string[], random: () => number): CommandContext {
+  let index = 0;
+  return {
+    random,
+    nextId: () => {
+      const id = ids[index];
+      if (id === undefined) {
+        throw new Error("ran out of ids");
+      }
+      index++;
+      return id;
+    },
+    timerRunning: false,
+  };
+}
+
+function eventOf(result: ReturnType<typeof decideSetup>): Event {
+  if (!("event" in result)) {
+    throw new Error("expected an event");
+  }
+  return result.event;
+}
+
+describe("F8: decideSetup", () => {
+  const setupIds = [...names(10).map((name) => `s-${name}`), "s-t0", "s-t1", "s-t2"];
+
+  it("CEN-5: reconfigures a draft with a new team size and players, staying in DRAFT", () => {
+    const draft = createdState(names(3), arrivalOn, () => 0);
+    const event = eventOf(
+      decideSetup(
+        draft,
+        { type: "setup", playerNames: ["A", "B", "C", "D", "E", "F"], config: { ...arrivalOn, teamSize: 3 } },
+        sequenceCtx(setupIds, () => 0),
+      ),
+    );
+    expect(event.type).toBe("MATCH_SET_UP");
+    const state = applyEvent(draft, event);
+    expect(state.status).toBe("DRAFT");
+    expect(state.config.teamSize).toBe(3);
+    expect(state.teams).toHaveLength(2);
+    expect(state.teams.every((team) => team.players.length === 3)).toBe(true);
+    expect(state.queue).toEqual([]);
+  });
+
+  it("CEN-6: discards manual swaps and forms the same lineup as a create with the same input", () => {
+    const draft = createdState(names(10), arrivalOff, () => 0.3);
+    const [first, second] = draft.teams;
+    if (first === undefined || second === undefined) {
+      throw new Error("fixture needs two teams");
+    }
+    const swapped = swapPlayers(draft, first.players[0]?.id ?? "", second.players[0]?.id ?? "");
+    const random = (): number => 0.42;
+    const setupState = applyEvent(
+      swapped,
+      eventOf(decideSetup(swapped, { type: "setup", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, random))),
+    );
+    const createResult = decideCreate(null, { type: "create", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, random));
+    if (!("event" in createResult)) {
+      throw new Error("expected an event");
+    }
+    expect(setupState).toEqual(applyEvent(null, createResult.event));
+  });
+
+  it("CEN-9: replay ends in the lineup formed by MATCH_SET_UP", () => {
+    const createResult = decideCreate(null, { type: "create", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, () => 0.3));
+    if (!("event" in createResult)) {
+      throw new Error("expected an event");
+    }
+    const created = applyEvent(null, createResult.event);
+    const [first, second] = created.teams;
+    const swapEvent = {
+      type: "PLAYERS_SWAPPED" as const,
+      playerAId: first?.players[0]?.id ?? "",
+      playerBId: second?.players[0]?.id ?? "",
+    };
+    const swapped = applyEvent(created, swapEvent);
+    const setupEvent = eventOf(
+      decideSetup(swapped, { type: "setup", playerNames: names(6), config: { ...arrivalOff, teamSize: 3 } }, sequenceCtx(setupIds, () => 0.7)),
+    );
+    expect(replay([createResult.event, swapEvent, setupEvent])).toEqual(applyEvent(swapped, setupEvent));
+    expect(replay([createResult.event, swapEvent, setupEvent]).config.teamSize).toBe(3);
   });
 });

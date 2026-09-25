@@ -1,6 +1,6 @@
 import { DomainError } from "../../shared/errors/domain-error";
 import { requireState, idsFrom } from "./support";
-import { formInitialState, flattenPlayers, decideCreate, decideReshuffle } from "./lineup";
+import { formInitialState, flattenPlayers, decideCreate, decideSetup, decideReshuffle } from "./lineup";
 import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
 import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
 import {
@@ -49,6 +49,7 @@ type CommandHandler = (
 
 const commandHandlers: Record<Command["type"], CommandHandler> = {
   create: decideCreate as CommandHandler,
+  setup: decideSetup as CommandHandler,
   reshuffle: decideReshuffle as CommandHandler,
   swap: decideSwap as CommandHandler,
   start: decideStart as CommandHandler,
@@ -63,6 +64,7 @@ const commandHandlers: Record<Command["type"], CommandHandler> = {
 
 const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   create: null,
+  setup: ["DRAFT"],
   reshuffle: ["DRAFT"],
   swap: ["DRAFT", "ACTIVE"],
   start: ["DRAFT"],
@@ -102,6 +104,14 @@ function handleMatchCreated(
   _state: MatchState | null,
   event: Extract<Event, { type: "MATCH_CREATED" }>,
 ): MatchState {
+  return formInitialState(event.players, event.config, idsFrom(event.teamIds));
+}
+
+function handleMatchSetUp(
+  state: MatchState | null,
+  event: Extract<Event, { type: "MATCH_SET_UP" }>,
+): MatchState {
+  requireState(state);
   return formInitialState(event.players, event.config, idsFrom(event.teamIds));
 }
 
@@ -192,6 +202,7 @@ type HandlerMap = {
 
 const eventHandlers: HandlerMap = {
   MATCH_CREATED: handleMatchCreated,
+  MATCH_SET_UP: handleMatchSetUp,
   RESHUFFLED: handleReshuffled,
   PLAYERS_SWAPPED: handlePlayersSwapped,
   MATCH_STARTED: handleMatchStarted,

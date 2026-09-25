@@ -146,6 +146,19 @@ export function decideCreate(
   };
 }
 
+export function decideSetup(
+  state: MatchState | null,
+  command: Extract<Command, { type: "setup" }>,
+  ctx: CommandContext,
+): DecideResult {
+  requireState(state);
+  const created = decideCreate(null, { ...command, type: "create" }, ctx);
+  if (!("event" in created) || created.event.type !== "MATCH_CREATED") {
+    throw new Error("invariant: create always returns MATCH_CREATED");
+  }
+  return { event: { ...created.event, type: "MATCH_SET_UP" } };
+}
+
 export function decideReshuffle(
   state: MatchState | null,
   _command: Extract<Command, { type: "reshuffle" }>,

@@ -22,4 +22,17 @@ describe("event codec", () => {
     });
     expect(applyEvent(null, event).config.ruleToggles).toEqual({ arrivalPriority: true });
   });
+
+  it("F8 CEN-9: round-trips a persisted MATCH_SET_UP", () => {
+    const event = decodeEvent("MATCH_SET_UP", {
+      ...legacyPayload,
+      config: { ...legacyPayload.config, ruleToggles: { arrivalPriority: true } },
+    });
+    expect(event).toEqual({
+      type: "MATCH_SET_UP",
+      config: { ...legacyPayload.config, ruleToggles: { arrivalPriority: true } },
+      players: legacyPayload.players,
+      teamIds: [],
+    });
+  });
 });

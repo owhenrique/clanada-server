@@ -146,6 +146,22 @@ export class MatchesController {
     return this.matchesService.execute(code, version, { type: "leave", playerId, fallback: dto.fallback });
   }
 
+  @Put(":code/setup")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  setup(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: CreateMatchDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, {
+      type: "setup",
+      config: dto.config,
+      playerNames: dto.playerNames,
+    });
+  }
+
   @Put(":code/team-size")
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: "If-Match", required: true })

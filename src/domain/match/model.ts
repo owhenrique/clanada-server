@@ -72,6 +72,10 @@ export type MatchCreatedEvent = {
   teamIds: string[];
 };
 
+export type MatchSetUpEvent = Omit<MatchCreatedEvent, "type"> & {
+  type: "MATCH_SET_UP";
+};
+
 export type ReshuffledEvent = {
   type: "RESHUFFLED";
   order: string[];
@@ -122,6 +126,7 @@ export type MatchEndedEvent = { type: "MATCH_ENDED" };
 
 export type Event =
   | MatchCreatedEvent
+  | MatchSetUpEvent
   | ReshuffledEvent
   | PlayersSwappedEvent
   | MatchStartedEvent
@@ -153,6 +158,7 @@ export type CreateMatchConfig = Omit<MatchConfig, "ruleToggles"> & {
 
 export type Command =
   | { type: "create"; playerNames: string[]; config: CreateMatchConfig }
+  | { type: "setup"; playerNames: string[]; config: CreateMatchConfig }
   | { type: "reshuffle" }
   | { type: "swap"; playerAId: string; playerBId: string }
   | { type: "start" }

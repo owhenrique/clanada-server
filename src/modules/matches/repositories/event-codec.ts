@@ -39,16 +39,19 @@ function invalidPayload(type: string): never {
   throw new Error(`invariant: invalid persisted event payload for "${type}"`);
 }
 
+function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, unknown>): Event {
+  if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
+    invalidPayload(type);
+  }
+  const config = { ...p.config, ruleToggles: decodeRuleToggles(p.config.ruleToggles) };
+  return { type, config, players: p.players, teamIds: p.teamIds };
+}
+
 type EventDecoder = (payload: Record<string, unknown>) => Event;
 
 const decoders: Record<Event["type"], EventDecoder> = {
-  MATCH_CREATED: (p) => {
-    if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
-      invalidPayload("MATCH_CREATED");
-    }
-    const config = { ...p.config, ruleToggles: decodeRuleToggles(p.config.ruleToggles) };
-    return { type: "MATCH_CREATED", config, players: p.players, teamIds: p.teamIds };
-  },
+  MATCH_CREATED: (p) => decodeLineup("MATCH_CREATED", p),
+  MATCH_SET_UP: (p) => decodeLineup("MATCH_SET_UP", p),
   RESHUFFLED: (p) => {
     if (!isStringArray(p.order) || !isStringArray(p.teamIds)) {
       invalidPayload("RESHUFFLED");
