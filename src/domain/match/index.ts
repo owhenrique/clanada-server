@@ -50,3 +50,5 @@ export {
   decodeSplitConfig,
   resolveSplitConfig,
 } from "./model";
+export { computeSplit, projectDepartedPlayers, splitDueAtMs } from "./split";
+export type { DepartedPlayer, SplitEntry, SplitTotals } from "./split";
