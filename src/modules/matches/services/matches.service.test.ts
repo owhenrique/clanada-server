@@ -1558,3 +1558,332 @@ describe("MatchesService setup (F8)", () => {
     expect(error).toBeInstanceOf(VersionConflictError);
   });
 });
+
+describe("MatchesService court split", () => {
+  const splitConfig: MatchConfig = {
+    ...config,
+    split: { enabled: true, hourlyRateCents: 10000, durationMinutes: 120 },
+  };
+  const sixteenNames = [
+    "Ana",
+    "Beto",
+    "Caio",
+    "Duda",
+    "Edu",
+    "Fabio",
+    "Gabi",
+    "Hugo",
+    "Ivo",
+    "Joana",
+    "Kaio",
+    "Lia",
+    "Mateus",
+    "Nina",
+    "Otto",
+    "Paula",
+  ];
+
+  async function matchStartedAt(
+    repository: MatchesRepository,
+    code: string,
+  ): Promise<Date> {
+    const stored = await repository.findByCode(code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    const events = await repository.listActiveEvents(stored.id);
+    const started = events.find(
+      (entry) => entry.event.type === "MATCH_STARTED",
+    );
+    if (started === undefined) {
+      throw new Error("missing MATCH_STARTED event");
+    }
+    return started.createdAt;
+  }
+
+  async function advanceToDueAt(
+    clock: MutableClock,
+    repository: MatchesRepository,
+    code: string,
+  ): Promise<Date> {
+    const startedAt = await matchStartedAt(repository, code);
+    const dueAt = new Date(startedAt.getTime() + 60 * 60_000);
+    clock.advance(dueAt.getTime() - clock.now().getTime());
+    return startedAt;
+  }
+
+  function idOf(
+    view: { players: Array<{ id: string; name: string }> },
+    name: string,
+  ): string {
+    const player = view.players.find((entry) => entry.name === name);
+    if (player === undefined) {
+      throw new Error(`missing player ${name}`);
+    }
+    return player.id;
+  }
+
+  it("getSplit with an unknown code returns MATCH_NOT_FOUND", async () => {
+    const { service } = makeService();
+
+    await expect(service.getSplit("AB23CD45")).rejects.toMatchObject({
+      code: "MATCH_NOT_FOUND",
+    });
+  });
+
+  it("getSplit with the split disabled returns SPLIT_DISABLED", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+
+    await expect(service.getSplit(created.code)).rejects.toMatchObject({
+      code: "SPLIT_DISABLED",
+    });
+  });
+
+  it("getSplit on a draft returns INVALID_STATUS", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config: splitConfig, playerNames });
+
+    await expect(service.getSplit(created.code)).rejects.toMatchObject({
+      code: "INVALID_STATUS",
+    });
+  });
+
+  it("getSplit before half returns SPLIT_NOT_READY", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+
+    await expect(service.getSplit(created.code)).rejects.toMatchObject({
+      code: "SPLIT_NOT_READY",
+    });
+  });
+
+  it("getSplit at half divides R$ 200,00 among the 16 players", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({
+      config: splitConfig,
+      playerNames: sixteenNames,
+    });
+    await service.execute(created.code, created.version, { type: "start" });
+    const startedAt = await advanceToDueAt(clock, repository, created.code);
+
+    const view = await service.getSplit(created.code);
+
+    expect(view.totalCents).toBe(20000);
+    expect(view.hourlyRateCents).toBe(10000);
+    expect(view.durationMinutes).toBe(120);
+    expect(view.paidTotalCents).toBe(0);
+    expect(view.remainingCents).toBe(20000);
+    expect(view.payerCount).toBe(16);
+    expect(view.perPersonCents).toBe(1250);
+    expect(view.receivedCount).toBe(0);
+    expect(view.receivedCents).toBe(0);
+    expect(view.pendingCents).toBe(20000);
+    expect(view.startedAt).toBe(startedAt.toISOString());
+    expect(view.dueAt).toBe(
+      new Date(startedAt.getTime() + 60 * 60_000).toISOString(),
+    );
+    expect(view.players).toHaveLength(16);
+    expect(
+      view.players.every(
+        (player) =>
+          !player.left &&
+          player.pays &&
+          player.paidCents === 0 &&
+          !player.received &&
+          player.owedCents === 1250,
+      ),
+    ).toBe(true);
+  });
+
+  it("getSplit on a match ended before half releases the division", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config: splitConfig, playerNames });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    await service.execute(created.code, started.version, { type: "end" });
+
+    const view = await service.getSplit(created.code);
+
+    expect(view.payerCount).toBe(4);
+    expect(view.perPersonCents).toBe(5000);
+    expect(view.startedAt).not.toBeNull();
+  });
+
+  it("getSplit discounts paid values from the remainder before dividing", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const cheapConfig: MatchConfig = {
+      ...config,
+      split: { enabled: true, hourlyRateCents: 1500, durationMinutes: 120 },
+    };
+    const created = await service.create({ config: cheapConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+
+    const initial = await service.getSplit(created.code);
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [idOf(initial, "Ana")]: {
+            pays: true,
+            paidCents: 1000,
+            received: false,
+          },
+          [idOf(initial, "Beto")]: {
+            pays: true,
+            paidCents: 1000,
+            received: false,
+          },
+          [idOf(initial, "Duda")]: {
+            pays: false,
+            paidCents: 0,
+            received: false,
+          },
+        },
+      },
+    });
+
+    const view = await service.getSplit(created.code);
+
+    expect(view.totalCents).toBe(3000);
+    expect(view.paidTotalCents).toBe(2000);
+    expect(view.remainingCents).toBe(1000);
+    expect(view.payerCount).toBe(1);
+    expect(view.perPersonCents).toBe(1000);
+    const caio = view.players.find((player) => player.name === "Caio");
+    expect(caio?.owedCents).toBe(1000);
+    const ana = view.players.find((player) => player.name === "Ana");
+    expect(ana?.owedCents).toBe(0);
+    expect(ana?.paidCents).toBe(1000);
+    const duda = view.players.find((player) => player.name === "Duda");
+    expect(duda?.pays).toBe(false);
+    expect(duda?.owedCents).toBe(0);
+  });
+
+  it("getSplit counts receipts and pending amounts", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+
+    const initial = await service.getSplit(created.code);
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [idOf(initial, "Ana")]: { pays: true, paidCents: 0, received: true },
+          [idOf(initial, "Beto")]: {
+            pays: true,
+            paidCents: 5000,
+            received: false,
+          },
+        },
+      },
+    });
+
+    const view = await service.getSplit(created.code);
+
+    expect(view.paidTotalCents).toBe(5000);
+    expect(view.remainingCents).toBe(15000);
+    expect(view.payerCount).toBe(3);
+    expect(view.perPersonCents).toBe(5000);
+    expect(view.receivedCount).toBe(1);
+    expect(view.receivedCents).toBe(10000);
+    expect(view.pendingCents).toBe(10000);
+    const ana = view.players.find((player) => player.name === "Ana");
+    expect(ana?.received).toBe(true);
+    expect(ana?.owedCents).toBe(0);
+  });
+
+  it("getSplit lists a departed player marked as payer with the paid value", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const wideConfig: MatchConfig = { ...splitConfig, teamSize: 5 };
+    const created = await service.create({
+      config: wideConfig,
+      playerNames: sixteenNames,
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    await advanceToDueAt(clock, repository, created.code);
+
+    const leaver = started.queue[0]?.id;
+    if (leaver === undefined) {
+      throw new Error("missing queue player");
+    }
+    const afterLeave = asView(
+      await service.execute(created.code, started.version, {
+        type: "leave",
+        playerId: leaver,
+      }),
+    );
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [leaver]: { pays: false, paidCents: 2000, received: false },
+        },
+      },
+    });
+
+    const view = await service.getSplit(created.code);
+
+    expect(view.players).toHaveLength(16);
+    const departed = view.players.at(-1);
+    expect(departed?.id).toBe(leaver);
+    expect(departed?.left).toBe(true);
+    expect(departed?.pays).toBe(false);
+    expect(departed?.paidCents).toBe(2000);
+    expect(view.paidTotalCents).toBe(2000);
+    expect(view.remainingCents).toBe(18000);
+    expect(view.payerCount).toBe(15);
+    expect(view.perPersonCents).toBe(1200);
+    expect(afterLeave.version).toBe(started.version + 1);
+  });
+
+  it("MatchView.splitDueAt exposes half of the pelada time once started", async () => {
+    const { service, repository } = makeService();
+    const created = await service.create({ config: splitConfig, playerNames });
+
+    expect(created.splitDueAt).toBeNull();
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    const startedAt = await matchStartedAt(repository, created.code);
+
+    expect(started.splitDueAt).toBe(
+      new Date(startedAt.getTime() + 60 * 60_000).toISOString(),
+    );
+  });
+
+  it("MatchView.splitDueAt stays null when the split is off or the pelada not started", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+
+    expect(created.splitDueAt).toBeNull();
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+
+    expect(started.splitDueAt).toBeNull();
+  });
+});

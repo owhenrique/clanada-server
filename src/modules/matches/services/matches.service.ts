@@ -3,12 +3,16 @@ import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
 import { Clock } from "../../../shared/ports/clock";
 import { IdGenerator } from "../../../shared/ports/id-generator";
 import { RandomSource } from "../../../shared/ports/random-source";
-import { DomainError, VersionConflictError } from "../../../shared/errors/domain-error";
+import {
+  DomainError,
+  VersionConflictError,
+} from "../../../shared/errors/domain-error";
 import {
   applyEvent,
   assertValidState,
   decide,
   replay,
+  splitDueAtMs,
   type Command,
   type CommandContext,
   type Event,
@@ -16,17 +20,28 @@ import {
 } from "../../../domain/match";
 import { GameHistoryRepository } from "../repositories/game-history.repository";
 import { generateMatchCode } from "../repositories/match-code";
-import { MatchCodeCollisionError, MatchesRepository, type StoredMatch } from "../repositories/matches.repository";
+import {
+  MatchCodeCollisionError,
+  MatchesRepository,
+  type StoredEvent,
+  type StoredMatch,
+} from "../repositories/matches.repository";
 import { toGameView, type GameView } from "./game-view";
+import { findMatchStartedAt, toSplitView, type SplitView } from "./split-view";
 import { toMatchView, type MatchView } from "./match-view";
 import { applyTimerAction, type TimerAction } from "./timer";
 import { findUndoableTarget } from "./undoable-target";
 
 const MAX_CODE_ATTEMPTS = 5;
 
-const TIMER_RESET_EVENT_TYPES: ReadonlySet<Event["type"]> = new Set(["GAME_WON", "GAME_DRAWN"]);
+const TIMER_RESET_EVENT_TYPES: ReadonlySet<Event["type"]> = new Set([
+  "GAME_WON",
+  "GAME_DRAWN",
+]);
 
-function requireEvent(result: { event: Event } | { penaltiesRequired: true }): Event {
+function requireEvent(
+  result: { event: Event } | { penaltiesRequired: true },
+): Event {
   if ("event" in result) {
     return result.event;
   }
@@ -44,10 +59,21 @@ export class MatchesService {
     @InjectPinoLogger(MatchesService.name) private readonly logger: PinoLogger,
   ) {}
 
-  async create(input: { config: CreateMatchConfig; playerNames: string[] }): Promise<MatchView> {
+  async create(input: {
+    config: CreateMatchConfig;
+    playerNames: string[];
+  }): Promise<MatchView> {
     try {
       const ctx = this.contextFor(false);
-      const result = decide(null, { type: "create", playerNames: input.playerNames, config: input.config }, ctx);
+      const result = decide(
+        null,
+        {
+          type: "create",
+          playerNames: input.playerNames,
+          config: input.config,
+        },
+        ctx,
+      );
       const event = requireEvent(result);
       const snapshot = applyEvent(null, event);
       assertValidState(snapshot);
@@ -56,9 +82,18 @@ export class MatchesService {
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
         const code = generateMatchCode(this.randomSource);
         try {
-          const stored = await this.repository.create({ code, event, snapshot });
+          const stored = await this.repository.create({
+            code,
+            event,
+            snapshot,
+          });
           const view = await this.buildView(stored);
-          this.logger.info({ action: "create", matchCode: stored.code, eventType: event.type, version: stored.version });
+          this.logger.info({
+            action: "create",
+            matchCode: stored.code,
+            eventType: event.type,
+            version: stored.version,
+          });
           return view;
         } catch (error) {
           if (error instanceof MatchCodeCollisionError) {
@@ -71,7 +106,11 @@ export class MatchesService {
       throw lastError;
     } catch (error) {
       if (error instanceof DomainError) {
-        this.logger.warn({ action: "create", matchCode: null, code: error.code });
+        this.logger.warn({
+          action: "create",
+          matchCode: null,
+          code: error.code,
+        });
       }
       throw error;
     }
@@ -87,6 +126,21 @@ export class MatchesService {
     return records.map(toGameView);
   }
 
+  async getSplit(code: string): Promise<SplitView> {
+    const action = "split.get";
+    try {
+      const stored = await this.lookup(code);
+      const activeEvents = await this.repository.listActiveEvents(stored.id);
+      this.assertSplitReady(stored, activeEvents);
+      return toSplitView(stored, activeEvents);
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
+  }
+
   private async lookup(code: string): Promise<StoredMatch> {
     const stored = await this.repository.findByCode(code);
     if (stored === null) {
@@ -95,7 +149,37 @@ export class MatchesService {
     return stored;
   }
 
-  async timer(code: string, expectedVersion: number, timerAction: TimerAction): Promise<MatchView> {
+  private assertSplitReady(
+    stored: StoredMatch,
+    activeEvents: readonly StoredEvent[],
+  ): void {
+    if (!stored.snapshot.config.split.enabled) {
+      throw new DomainError("SPLIT_DISABLED");
+    }
+    if (stored.status === "DRAFT") {
+      throw new DomainError("INVALID_STATUS");
+    }
+    if (stored.status !== "ACTIVE") {
+      return;
+    }
+    const startedAt = findMatchStartedAt(activeEvents);
+    if (startedAt === null) {
+      throw new DomainError("SPLIT_NOT_READY");
+    }
+    const dueAtMs = splitDueAtMs(
+      startedAt.getTime(),
+      stored.snapshot.config.split.durationMinutes,
+    );
+    if (this.clock.now().getTime() < dueAtMs) {
+      throw new DomainError("SPLIT_NOT_READY");
+    }
+  }
+
+  async timer(
+    code: string,
+    expectedVersion: number,
+    timerAction: TimerAction,
+  ): Promise<MatchView> {
     const action = `timer.${timerAction}`;
     try {
       const stored = await this.repository.findByCode(code);
@@ -109,15 +193,27 @@ export class MatchesService {
         throw new DomainError("INVALID_STATUS");
       }
 
-      const timer = applyTimerAction(stored.timer, timerAction, this.clock.now());
+      const timer = applyTimerAction(
+        stored.timer,
+        timerAction,
+        this.clock.now(),
+      );
       if (timer === stored.timer) {
         return await this.buildView(stored);
       }
 
       try {
-        const updated = await this.repository.updateTimer({ matchId: stored.id, expectedVersion, timer });
+        const updated = await this.repository.updateTimer({
+          matchId: stored.id,
+          expectedVersion,
+          timer,
+        });
         const view = await this.buildView(updated);
-        this.logger.info({ action, matchCode: updated.code, version: updated.version });
+        this.logger.info({
+          action,
+          matchCode: updated.code,
+          version: updated.version,
+        });
         return view;
       } catch (error) {
         if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
@@ -182,7 +278,11 @@ export class MatchesService {
       }
     } catch (error) {
       if (error instanceof DomainError) {
-        this.logger.warn({ action: command.type, matchCode: code, code: error.code });
+        this.logger.warn({
+          action: command.type,
+          matchCode: code,
+          code: error.code,
+        });
       }
       throw error;
     }
@@ -208,10 +308,14 @@ export class MatchesService {
       }
       const target = activeEvents[targetIndex];
       if (target === undefined) {
-        throw new Error("invariant: findUndoableTarget returned an out-of-range index");
+        throw new Error(
+          "invariant: findUndoableTarget returned an out-of-range index",
+        );
       }
 
-      const remainingEvents = activeEvents.filter((_, index) => index !== targetIndex).map((stored) => stored.event);
+      const remainingEvents = activeEvents
+        .filter((_, index) => index !== targetIndex)
+        .map((stored) => stored.event);
       const snapshot = replay(remainingEvents);
       assertValidState(snapshot);
 
