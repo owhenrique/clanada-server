@@ -1886,4 +1886,121 @@ describe("MatchesService court split", () => {
 
     expect(started.splitDueAt).toBeNull();
   });
+
+  it("setSplitPlayer before half returns SPLIT_NOT_READY", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+
+    await expect(
+      service.setSplitPlayer(created.code, "ghost", {
+        pays: false,
+        paidCents: 0,
+        received: false,
+      }),
+    ).rejects.toMatchObject({ code: "SPLIT_NOT_READY" });
+  });
+
+  it("setSplitPlayer with the split disabled returns SPLIT_DISABLED", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+
+    await expect(
+      service.setSplitPlayer(created.code, "ghost", {
+        pays: false,
+        paidCents: 0,
+        received: false,
+      }),
+    ).rejects.toMatchObject({ code: "SPLIT_DISABLED" });
+  });
+
+  it("setSplitPlayer with an unknown player returns PLAYER_NOT_FOUND", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+
+    await expect(
+      service.setSplitPlayer(created.code, "ghost", {
+        pays: false,
+        paidCents: 0,
+        received: false,
+      }),
+    ).rejects.toMatchObject({ code: "PLAYER_NOT_FOUND" });
+  });
+
+  it("setSplitPlayer normalizes the entry and recalculates the view", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository, logger } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const dudaId = idOf(initial, "Duda");
+
+    const paid = await service.setSplitPlayer(created.code, dudaId, {
+      pays: true,
+      paidCents: 500,
+      received: false,
+    });
+    const duda = paid.players.find((player) => player.name === "Duda");
+    expect(duda?.pays).toBe(true);
+    expect(duda?.paidCents).toBe(0);
+    expect(paid.perPersonCents).toBe(5000);
+
+    const unmarked = await service.setSplitPlayer(created.code, dudaId, {
+      pays: false,
+      paidCents: 0,
+      received: true,
+    });
+    const dudaAgain = unmarked.players.find((player) => player.name === "Duda");
+    expect(dudaAgain?.pays).toBe(false);
+    expect(dudaAgain?.received).toBe(false);
+    expect(unmarked.payerCount).toBe(3);
+    expect(unmarked.perPersonCents).toBe(6667);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "split.setPlayer",
+        pays: false,
+        received: false,
+      }),
+    );
+  });
+
+  it("setSplitPlayer accepts a departed player and keeps the paid value", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const wideConfig: MatchConfig = { ...splitConfig, teamSize: 5 };
+    const created = await service.create({
+      config: wideConfig,
+      playerNames: sixteenNames,
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    await advanceToDueAt(clock, repository, created.code);
+    const leaver = started.queue[0]?.id;
+    if (leaver === undefined) {
+      throw new Error("missing queue player");
+    }
+    await service.execute(created.code, started.version, {
+      type: "leave",
+      playerId: leaver,
+    });
+
+    await service.setSplitPlayer(created.code, leaver, {
+      pays: false,
+      paidCents: 2000,
+      received: false,
+    });
+    const view = await service.getSplit(created.code);
+
+    expect(view.payerCount).toBe(15);
+    expect(view.remainingCents).toBe(18000);
+    expect(view.perPersonCents).toBe(1200);
+    const departed = view.players.at(-1);
+    expect(departed?.paidCents).toBe(2000);
+  });
 });

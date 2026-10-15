@@ -27,6 +27,7 @@ import { CreateMatchDto } from "../dto/create-match.dto";
 import { JoinPlayerDto } from "../dto/join-player.dto";
 import { LeaveQueryDto } from "../dto/leave-query.dto";
 import { LoserTeamDto } from "../dto/loser-team.dto";
+import { SetSplitPlayerDto } from "../dto/set-split-player.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
 import { GameView } from "../services/game-view";
 import { MatchView, PenaltiesRequiredView } from "../services/match-view";
@@ -70,6 +71,17 @@ export class MatchesController {
   @ApiOkResponse({ type: SplitView })
   getSplit(@Param("code") code: string): Promise<SplitView> {
     return this.matchesService.getSplit(code);
+  }
+
+  @Put(":code/split/players/:playerId")
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SplitView })
+  setSplitPlayer(
+    @Param("code") code: string,
+    @Param("playerId") playerId: string,
+    @Body() dto: SetSplitPlayerDto,
+  ): Promise<SplitView> {
+    return this.matchesService.setSplitPlayer(code, playerId, dto);
   }
 
   @Post(":code/reshuffle")

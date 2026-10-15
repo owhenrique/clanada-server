@@ -118,6 +118,90 @@
         ]
       }
     },
+    "/api/matches/{code}/split": {
+      "get": {
+        "operationId": "MatchesController_getSplit",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/api/matches/{code}/split/players/{playerId}": {
+      "put": {
+        "operationId": "MatchesController_setSplitPlayer",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSplitPlayerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
     "/api/matches/{code}/reshuffle": {
       "post": {
         "operationId": "MatchesController_reshuffle",
@@ -839,6 +923,26 @@
           }
         }
       },
+      "SplitConfigDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Padrão: false"
+          },
+          "hourlyRateCents": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "durationMinutes": {
+            "type": "number",
+            "minimum": 30,
+            "maximum": 240,
+            "multipleOf": 15
+          }
+        }
+      },
       "MatchConfigDto": {
         "type": "object",
         "properties": {
@@ -872,6 +976,9 @@
           },
           "ruleToggles": {
             "$ref": "#/components/schemas/RuleTogglesDto"
+          },
+          "split": {
+            "$ref": "#/components/schemas/SplitConfigDto"
           }
         },
         "required": [
@@ -911,6 +1018,25 @@
           "arrivalPriority"
         ]
       },
+      "SplitConfigViewDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "hourlyRateCents": {
+            "type": "number"
+          },
+          "durationMinutes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "hourlyRateCents",
+          "durationMinutes"
+        ]
+      },
       "MatchConfigViewDto": {
         "type": "object",
         "properties": {
@@ -944,13 +1070,17 @@
           },
           "ruleToggles": {
             "$ref": "#/components/schemas/RuleTogglesViewDto"
+          },
+          "split": {
+            "$ref": "#/components/schemas/SplitConfigViewDto"
           }
         },
         "required": [
           "teamSize",
           "colors",
           "gameMinutes",
-          "ruleToggles"
+          "ruleToggles",
+          "split"
         ]
       },
       "PlayerView": {
@@ -1051,6 +1181,10 @@
           },
           "canUndo": {
             "type": "boolean"
+          },
+          "splitDueAt": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -1062,7 +1196,8 @@
           "queue",
           "timer",
           "serverNow",
-          "canUndo"
+          "canUndo",
+          "splitDueAt"
         ]
       },
       "GameTeamView": {
@@ -1128,6 +1263,126 @@
           "outcome",
           "winnerTeamId",
           "teams"
+        ]
+      },
+      "SplitPlayerView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "left": {
+            "type": "boolean"
+          },
+          "pays": {
+            "type": "boolean"
+          },
+          "paidCents": {
+            "type": "number"
+          },
+          "received": {
+            "type": "boolean"
+          },
+          "owedCents": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "left",
+          "pays",
+          "paidCents",
+          "received",
+          "owedCents"
+        ]
+      },
+      "SplitView": {
+        "type": "object",
+        "properties": {
+          "totalCents": {
+            "type": "number"
+          },
+          "hourlyRateCents": {
+            "type": "number"
+          },
+          "durationMinutes": {
+            "type": "number"
+          },
+          "paidTotalCents": {
+            "type": "number"
+          },
+          "remainingCents": {
+            "type": "number"
+          },
+          "payerCount": {
+            "type": "number"
+          },
+          "perPersonCents": {
+            "type": "number"
+          },
+          "receivedCount": {
+            "type": "number"
+          },
+          "receivedCents": {
+            "type": "number"
+          },
+          "pendingCents": {
+            "type": "number"
+          },
+          "startedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "dueAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitPlayerView"
+            }
+          }
+        },
+        "required": [
+          "totalCents",
+          "hourlyRateCents",
+          "durationMinutes",
+          "paidTotalCents",
+          "remainingCents",
+          "payerCount",
+          "perPersonCents",
+          "receivedCount",
+          "receivedCents",
+          "pendingCents",
+          "startedAt",
+          "dueAt",
+          "players"
+        ]
+      },
+      "SetSplitPlayerDto": {
+        "type": "object",
+        "properties": {
+          "pays": {
+            "type": "boolean"
+          },
+          "paidCents": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "received": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pays",
+          "paidCents",
+          "received"
         ]
       },
       "SwapPlayersDto": {

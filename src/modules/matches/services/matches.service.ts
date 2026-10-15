@@ -23,11 +23,18 @@ import { generateMatchCode } from "../repositories/match-code";
 import {
   MatchCodeCollisionError,
   MatchesRepository,
+  type MatchSplitPlayerState,
   type StoredEvent,
   type StoredMatch,
 } from "../repositories/matches.repository";
 import { toGameView, type GameView } from "./game-view";
-import { findMatchStartedAt, toSplitView, type SplitView } from "./split-view";
+import {
+  findMatchStartedAt,
+  normalizeSplitEntry,
+  splitRosterIds,
+  toSplitView,
+  type SplitView,
+} from "./split-view";
 import { toMatchView, type MatchView } from "./match-view";
 import { applyTimerAction, type TimerAction } from "./timer";
 import { findUndoableTarget } from "./undoable-target";
@@ -133,6 +140,41 @@ export class MatchesService {
       const activeEvents = await this.repository.listActiveEvents(stored.id);
       this.assertSplitReady(stored, activeEvents);
       return toSplitView(stored, activeEvents);
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
+  }
+
+  async setSplitPlayer(
+    code: string,
+    playerId: string,
+    input: MatchSplitPlayerState,
+  ): Promise<SplitView> {
+    const action = "split.setPlayer";
+    try {
+      const stored = await this.lookup(code);
+      const activeEvents = await this.repository.listActiveEvents(stored.id);
+      this.assertSplitReady(stored, activeEvents);
+      if (!splitRosterIds(stored, activeEvents).has(playerId)) {
+        throw new DomainError("PLAYER_NOT_FOUND");
+      }
+      const entry = normalizeSplitEntry(input);
+      const players = { ...(stored.split?.players ?? {}), [playerId]: entry };
+      const updated = await this.repository.updateSplit({
+        matchId: stored.id,
+        split: { players },
+      });
+      this.logger.info({
+        action,
+        matchCode: updated.code,
+        playerId,
+        pays: entry.pays,
+        received: entry.received,
+      });
+      return toSplitView(updated, activeEvents);
     } catch (error) {
       if (error instanceof DomainError) {
         this.logger.warn({ action, matchCode: code, code: error.code });

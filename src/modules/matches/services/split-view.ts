@@ -5,6 +5,7 @@ import {
   splitDueAtMs,
 } from "../../../domain/match";
 import type {
+  MatchSplitPlayerState,
   StoredEvent,
   StoredMatch,
 } from "../repositories/matches.repository";
@@ -168,5 +169,26 @@ export function toSplitView(
           ? totals.perPersonCents
           : 0,
     })),
+  };
+}
+
+export function splitRosterIds(
+  stored: StoredMatch,
+  activeEvents: readonly StoredEvent[],
+): Set<string> {
+  const ids = new Set(presentPlayers(stored).map((player) => player.id));
+  for (const player of projectDepartedPlayers(activeEvents)) {
+    ids.add(player.id);
+  }
+  return ids;
+}
+
+export function normalizeSplitEntry(
+  input: MatchSplitPlayerState,
+): MatchSplitPlayerState {
+  return {
+    pays: input.pays,
+    paidCents: input.pays ? 0 : input.paidCents,
+    received: input.pays ? input.received : false,
   };
 }
