@@ -19,6 +19,7 @@ import {
   type RevokeLastInput,
   type StoredEvent,
   type StoredMatch,
+  type UpdateSplitInput,
   type UpdateTimerInput,
 } from "../repositories/matches.repository";
 import { MatchesService } from "./matches.service";
@@ -135,6 +136,10 @@ class AlwaysCollidingRepository extends MatchesRepository {
   updateTimer(): Promise<StoredMatch> {
     throw new Error("not used in this fake");
   }
+
+  updateSplit(): Promise<StoredMatch> {
+    throw new Error("not used in this fake");
+  }
 }
 
 class CollidingOnceRepository extends MatchesRepository {
@@ -173,6 +178,10 @@ class CollidingOnceRepository extends MatchesRepository {
   updateTimer(input: UpdateTimerInput): Promise<StoredMatch> {
     return this.inner.updateTimer(input);
   }
+
+  updateSplit(input: UpdateSplitInput): Promise<StoredMatch> {
+    return this.inner.updateSplit(input);
+  }
 }
 
 class RaceOnFirstAppendRepository extends MatchesRepository {
@@ -209,6 +218,10 @@ class RaceOnFirstAppendRepository extends MatchesRepository {
 
   updateTimer(input: UpdateTimerInput): Promise<StoredMatch> {
     return this.inner.updateTimer(input);
+  }
+
+  updateSplit(input: UpdateSplitInput): Promise<StoredMatch> {
+    return this.inner.updateSplit(input);
   }
 }
 

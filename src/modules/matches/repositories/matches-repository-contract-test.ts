@@ -9,7 +9,7 @@ import {
   type MatchState,
   type CommandContext,
 } from "../../../domain/match";
-import type { MatchesRepository } from "./matches.repository";
+import type { MatchSplitState, MatchesRepository } from "./matches.repository";
 
 const config: MatchConfig = {
   teamSize: 2,
@@ -369,6 +369,30 @@ export function runMatchesRepositoryContract(
 
       const events = await repository.listActiveEvents(created.id);
       expect(events).toHaveLength(2);
+    });
+
+    it("CEN-11: stores the split without advancing the version", async () => {
+      const repository = createRepository();
+      const { event, snapshot } = createdFixture();
+      const created = await repository.create({
+        code: "CEN11COD",
+        event,
+        snapshot,
+      });
+      const split: MatchSplitState = {
+        players: { p0: { pays: true, paidCents: 0, received: false } },
+      };
+
+      expect(created.split).toBeNull();
+      const stored = await repository.updateSplit({
+        matchId: created.id,
+        split,
+      });
+
+      expect(stored.split).toEqual(split);
+      expect(stored.version).toBe(created.version);
+      const found = await repository.findByCode("CEN11COD");
+      expect(found?.split).toEqual(split);
     });
   });
 }

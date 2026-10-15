@@ -5,12 +5,23 @@ export type MatchTimer = {
   elapsedMs: number;
 };
 
+export type MatchSplitPlayerState = {
+  pays: boolean;
+  paidCents: number;
+  received: boolean;
+};
+
+export type MatchSplitState = {
+  players: Record<string, MatchSplitPlayerState>;
+};
+
 export type StoredMatch = {
   id: string;
   code: string;
   status: MatchStatus;
   version: number;
   snapshot: MatchState;
+  split: MatchSplitState | null;
   timer: MatchTimer;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +59,11 @@ export type UpdateTimerInput = {
   timer: MatchTimer;
 };
 
+export type UpdateSplitInput = {
+  matchId: string;
+  split: MatchSplitState;
+};
+
 export class MatchCodeCollisionError extends Error {
   constructor(code: string) {
     super(`invariant: match code "${code}" is already in use`);
@@ -62,4 +78,5 @@ export abstract class MatchesRepository {
   abstract append(input: AppendInput): Promise<StoredMatch>;
   abstract revokeLast(input: RevokeLastInput): Promise<StoredMatch>;
   abstract updateTimer(input: UpdateTimerInput): Promise<StoredMatch>;
+  abstract updateSplit(input: UpdateSplitInput): Promise<StoredMatch>;
 }
