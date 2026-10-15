@@ -1,9 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  computeSplit,
-  projectDepartedPlayers,
-  splitDueAtMs,
-} from "../../../domain/match";
+import { computeSplit, projectDepartedPlayers, splitDueAtMs } from "../../../domain/match";
 import type {
   MatchSplitPlayerState,
   StoredEvent,
@@ -74,9 +70,7 @@ export class SplitView {
   players!: SplitPlayerView[];
 }
 
-export function findMatchStartedAt(
-  events: readonly StoredEvent[],
-): Date | null {
+export function findMatchStartedAt(events: readonly StoredEvent[]): Date | null {
   for (const entry of events) {
     if (entry.event.type === "MATCH_STARTED") {
       return entry.createdAt;
@@ -85,28 +79,16 @@ export function findMatchStartedAt(
   return null;
 }
 
-function presentPlayers(
-  stored: StoredMatch,
-): Array<{ id: string; name: string }> {
-  return [
-    ...stored.snapshot.teams.flatMap((team) => team.players),
-    ...stored.snapshot.queue,
-  ];
+function presentPlayers(stored: StoredMatch): Array<{ id: string; name: string }> {
+  return [...stored.snapshot.teams.flatMap((team) => team.players), ...stored.snapshot.queue];
 }
 
-export function toSplitView(
-  stored: StoredMatch,
-  activeEvents: readonly StoredEvent[],
-): SplitView {
+export function toSplitView(stored: StoredMatch, activeEvents: readonly StoredEvent[]): SplitView {
   const config = stored.snapshot.config.split;
-  const totalCents = Math.ceil(
-    (config.hourlyRateCents * config.durationMinutes) / 60,
-  );
+  const totalCents = Math.ceil((config.hourlyRateCents * config.durationMinutes) / 60);
   const startedAt = findMatchStartedAt(activeEvents);
   const dueAtMs =
-    startedAt === null
-      ? null
-      : splitDueAtMs(startedAt.getTime(), config.durationMinutes);
+    startedAt === null ? null : splitDueAtMs(startedAt.getTime(), config.durationMinutes);
   const overrides = stored.split?.players ?? {};
 
   const rows = [
@@ -139,10 +121,7 @@ export function toSplitView(
     totalCents,
     totals.paidTotalCents + receivedCount * totals.perPersonCents,
   );
-  const pendingCents = Math.max(
-    0,
-    totals.remainingCents - receivedCount * totals.perPersonCents,
-  );
+  const pendingCents = Math.max(0, totals.remainingCents - receivedCount * totals.perPersonCents);
 
   return {
     totalCents,
@@ -164,10 +143,7 @@ export function toSplitView(
       pays: entry.pays,
       paidCents: entry.paidCents,
       received: entry.received,
-      owedCents:
-        entry.pays && entry.paidCents === 0 && !entry.received
-          ? totals.perPersonCents
-          : 0,
+      owedCents: entry.pays && entry.paidCents === 0 && !entry.received ? totals.perPersonCents : 0,
     })),
   };
 }
@@ -183,9 +159,7 @@ export function splitRosterIds(
   return ids;
 }
 
-export function normalizeSplitEntry(
-  input: MatchSplitPlayerState,
-): MatchSplitPlayerState {
+export function normalizeSplitEntry(input: MatchSplitPlayerState): MatchSplitPlayerState {
   return {
     pays: input.pays,
     paidCents: input.pays ? 0 : input.paidCents,

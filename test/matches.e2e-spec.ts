@@ -1,9 +1,6 @@
 import { execSync } from "node:child_process";
 import type { INestApplication } from "@nestjs/common";
-import {
-  PostgreSqlContainer,
-  type StartedPostgreSqlContainer,
-} from "@testcontainers/postgresql";
+import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Prisma } from "../src/generated/prisma/client";
@@ -59,9 +56,7 @@ describe("Matches API (e2e)", () => {
   });
 
   it("CEN-1: POST /api/matches creates a DRAFT match", async () => {
-    const response = await request(httpServerOf(app))
-      .post("/api/matches")
-      .send(createBody);
+    const response = await request(httpServerOf(app)).post("/api/matches").send(createBody);
     const view = viewOf(response);
 
     expect(response.status).toBe(201);
@@ -72,14 +67,8 @@ describe("Matches API (e2e)", () => {
   });
 
   it.each([
-    [
-      "teamSize below 2",
-      { ...createBody, config: { ...createBody.config, teamSize: 1 } },
-    ],
-    [
-      "fewer than 2 colors",
-      { ...createBody, config: { ...createBody.config, colors: ["verde"] } },
-    ],
+    ["teamSize below 2", { ...createBody, config: { ...createBody.config, teamSize: 1 } }],
+    ["fewer than 2 colors", { ...createBody, config: { ...createBody.config, colors: ["verde"] } }],
     [
       "color outside the palette",
       {
@@ -87,26 +76,16 @@ describe("Matches API (e2e)", () => {
         config: { ...createBody.config, colors: ["verde", "invisivel"] },
       },
     ],
-    [
-      "gameMinutes 0",
-      { ...createBody, config: { ...createBody.config, gameMinutes: 0 } },
-    ],
+    ["gameMinutes 0", { ...createBody, config: { ...createBody.config, gameMinutes: 0 } }],
     ["empty playerNames", { ...createBody, playerNames: [] }],
-  ])(
-    "CEN-3: POST /api/matches rejects invalid DTO (%s)",
-    async (_label, body) => {
-      const response = await request(httpServerOf(app))
-        .post("/api/matches")
-        .send(body);
+  ])("CEN-3: POST /api/matches rejects invalid DTO (%s)", async (_label, body) => {
+    const response = await request(httpServerOf(app)).post("/api/matches").send(body);
 
-      expect(response.status).toBe(400);
-    },
-  );
+    expect(response.status).toBe(400);
+  });
 
   it("CEN-6: create -> reshuffle -> swap -> start -> GET reflects each step", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
     const code = created.code;
 
     const reshuffledResponse = await request(httpServerOf(app))
@@ -139,9 +118,7 @@ describe("Matches API (e2e)", () => {
     expect(started.status).toBe("ACTIVE");
     expect(started.version).toBe(4);
 
-    const fetchedResponse = await request(httpServerOf(app)).get(
-      `/api/matches/${code}`,
-    );
+    const fetchedResponse = await request(httpServerOf(app)).get(`/api/matches/${code}`);
     expect(fetchedResponse.status).toBe(200);
     expect(viewOf(fetchedResponse)).toMatchObject({
       code,
@@ -151,18 +128,14 @@ describe("Matches API (e2e)", () => {
   });
 
   it("CEN-7: GET /api/matches/:code with an unknown code returns 404", async () => {
-    const response = await request(httpServerOf(app)).get(
-      "/api/matches/ZZZZZZZZ",
-    );
+    const response = await request(httpServerOf(app)).get("/api/matches/ZZZZZZZZ");
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ code: "MATCH_NOT_FOUND" });
   });
 
   it("CEN-15: mutation without If-Match returns 400", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
     const response = await request(httpServerOf(app))
       .post(`/api/matches/${created.code}/reshuffle`)
@@ -172,9 +145,7 @@ describe("Matches API (e2e)", () => {
   });
 
   it("CEN-16: a stale If-Match returns 412 with the current MatchView, without a code wrapper", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
     const response = await request(httpServerOf(app))
       .post(`/api/matches/${created.code}/reshuffle`)
@@ -188,16 +159,12 @@ describe("Matches API (e2e)", () => {
       status: "DRAFT",
     });
 
-    const fetched = viewOf(
-      await request(httpServerOf(app)).get(`/api/matches/${created.code}`),
-    );
+    const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
     expect(fetched.version).toBe(1);
   });
 
   it("S7 CEN-24: a mutation on a new route without If-Match returns 400", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
     const response = await request(httpServerOf(app))
       .post(`/api/matches/${created.code}/games/win`)
@@ -207,9 +174,7 @@ describe("Matches API (e2e)", () => {
   });
 
   it("S7 CEN-25: a stale If-Match on a new route returns 412 with the current MatchView", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
     const response = await request(httpServerOf(app))
       .post(`/api/matches/${created.code}/players`)
@@ -223,9 +188,7 @@ describe("Matches API (e2e)", () => {
       status: "DRAFT",
     });
 
-    const fetched = viewOf(
-      await request(httpServerOf(app)).get(`/api/matches/${created.code}`),
-    );
+    const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
     expect(fetched.version).toBe(1);
   });
 
@@ -236,9 +199,7 @@ describe("Matches API (e2e)", () => {
     };
 
     const created = viewOf(
-      await request(httpServerOf(app))
-        .post("/api/matches")
-        .send(fivePlayerBody),
+      await request(httpServerOf(app)).post("/api/matches").send(fivePlayerBody),
     );
     const code = created.code;
     expect(created.version).toBe(1);
@@ -302,9 +263,7 @@ describe("Matches API (e2e)", () => {
     }
     const leftWithReduce = viewOf(
       await request(httpServerOf(app))
-        .delete(
-          `/api/matches/${code}/players/${noDonorLeaverId}?fallback=reduce-team-size`,
-        )
+        .delete(`/api/matches/${code}/players/${noDonorLeaverId}?fallback=reduce-team-size`)
         .set("If-Match", "5")
         .send(),
     );
@@ -370,16 +329,12 @@ describe("Matches API (e2e)", () => {
     expect(afterEndResponse.status).toBe(422);
     expect(afterEndResponse.body).toEqual({ code: "INVALID_STATUS" });
 
-    const finalFetch = viewOf(
-      await request(httpServerOf(app)).get(`/api/matches/${code}`),
-    );
+    const finalFetch = viewOf(await request(httpServerOf(app)).get(`/api/matches/${code}`));
     expect(finalFetch.version).toBe(12);
   });
 
   it("CEN-11: timer routes start, pause and reset the match timer", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
     const code = created.code;
     const started = viewOf(
       await request(httpServerOf(app))
@@ -424,9 +379,7 @@ describe("Matches API (e2e)", () => {
   });
 
   it("CEN-11: timer route on a DRAFT match returns 422 INVALID_STATUS", async () => {
-    const created = viewOf(
-      await request(httpServerOf(app)).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
     const response = await request(httpServerOf(app))
       .post(`/api/matches/${created.code}/timer/start`)
@@ -439,9 +392,7 @@ describe("Matches API (e2e)", () => {
 
   it("F3 CEN-7: GET /api/matches/:code/games returns only the active games, in seq order", async () => {
     const server = httpServerOf(app);
-    const created = viewOf(
-      await request(server).post("/api/matches").send(createBody),
-    );
+    const created = viewOf(await request(server).post("/api/matches").send(createBody));
     const code = created.code;
     const started = viewOf(
       await request(server)
@@ -484,20 +435,13 @@ describe("Matches API (e2e)", () => {
       outcome: "penalties",
       winnerTeamId: winnerId,
     });
-    expect(games[0]?.teams.map((team) => team.teamId)).toEqual([
-      winnerId,
-      loserId,
-    ]);
+    expect(games[0]?.teams.map((team) => team.teamId)).toEqual([winnerId, loserId]);
     expect(games[0]?.teams[0]?.players).toEqual(started.teams[0]?.players);
-    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(
-      games[0]?.playedAt,
-    );
+    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
   });
 
   it("F3 CEN-8: GET /api/matches/:code/games with an unknown code returns 404", async () => {
-    const response = await request(httpServerOf(app)).get(
-      "/api/matches/ZZZZZZZZ/games",
-    );
+    const response = await request(httpServerOf(app)).get("/api/matches/ZZZZZZZZ/games");
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ code: "MATCH_NOT_FOUND" });
@@ -520,9 +464,7 @@ describe("Matches API (e2e)", () => {
           }),
       );
 
-      const response = await request(server).get(
-        `/api/matches/${created.code}`,
-      );
+      const response = await request(server).get(`/api/matches/${created.code}`);
 
       expect(viewOf(response).config.ruleToggles).toEqual({
         arrivalPriority: expected,
@@ -560,8 +502,7 @@ describe("Matches API (e2e)", () => {
       where: { code: created.code },
     });
     const snapshot = row.snapshot as Prisma.JsonObject;
-    const { ruleToggles: _dropped, ...legacyConfig } =
-      snapshot.config as Prisma.JsonObject;
+    const { ruleToggles: _dropped, ...legacyConfig } = snapshot.config as Prisma.JsonObject;
     await prisma.match.update({
       where: { id: row.id },
       data: { snapshot: { ...snapshot, config: legacyConfig } },
@@ -602,9 +543,7 @@ describe("Matches API (e2e)", () => {
       },
       playerNames: createBody.playerNames,
     };
-    const created = viewOf(
-      await request(server).post("/api/matches").send(splitCreateBody),
-    );
+    const created = viewOf(await request(server).post("/api/matches").send(splitCreateBody));
 
     expect(created.config.split).toEqual({
       enabled: true,
@@ -621,9 +560,7 @@ describe("Matches API (e2e)", () => {
     );
     expect(started.splitDueAt).not.toBeNull();
 
-    const notReady = await request(server).get(
-      `/api/matches/${created.code}/split`,
-    );
+    const notReady = await request(server).get(`/api/matches/${created.code}/split`);
     expect(notReady.status).toBe(422);
     expect(notReady.body).toEqual({ code: "SPLIT_NOT_READY" });
 
@@ -635,9 +572,7 @@ describe("Matches API (e2e)", () => {
     );
     expect(ended.splitDueAt).toBe(started.splitDueAt);
 
-    const response = await request(server).get(
-      `/api/matches/${created.code}/split`,
-    );
+    const response = await request(server).get(`/api/matches/${created.code}/split`);
     expect(response.status).toBe(200);
     const split = response.body as SplitView;
     expect(split.totalCents).toBe(20000);
@@ -654,9 +589,7 @@ describe("Matches API (e2e)", () => {
     expect(split.startedAt).not.toBeNull();
     expect(split.players).toHaveLength(4);
     expect(
-      split.players.every(
-        (player) => !player.left && player.pays && player.owedCents === 5000,
-      ),
+      split.players.every((player) => !player.left && player.pays && player.owedCents === 5000),
     ).toBe(true);
   });
 
@@ -669,9 +602,7 @@ describe("Matches API (e2e)", () => {
       },
       playerNames: createBody.playerNames,
     };
-    const created = viewOf(
-      await request(server).post("/api/matches").send(splitCreateBody),
-    );
+    const created = viewOf(await request(server).post("/api/matches").send(splitCreateBody));
     const started = viewOf(
       await request(server)
         .post(`/api/matches/${created.code}/start`)
@@ -683,9 +614,8 @@ describe("Matches API (e2e)", () => {
       .set("If-Match", String(started.version))
       .send();
 
-    const before = (
-      await request(server).get(`/api/matches/${created.code}/split`)
-    ).body as SplitView;
+    const before = (await request(server).get(`/api/matches/${created.code}/split`))
+      .body as SplitView;
     const duda = before.players.find((player) => player.name === "Duda");
     if (duda === undefined) {
       throw new Error("missing player");
@@ -696,9 +626,7 @@ describe("Matches API (e2e)", () => {
       .send({ pays: true, paidCents: 500, received: false });
     expect(paid.status).toBe(200);
     const paidSplit = paid.body as SplitView;
-    expect(
-      paidSplit.players.find((player) => player.id === duda.id)?.paidCents,
-    ).toBe(0);
+    expect(paidSplit.players.find((player) => player.id === duda.id)?.paidCents).toBe(0);
     expect(paidSplit.perPersonCents).toBe(5000);
 
     const unmarked = await request(server)
@@ -721,10 +649,7 @@ describe("Matches API (e2e)", () => {
 
   it("the split reflects a departed player with an already paid value", async () => {
     const server = httpServerOf(app);
-    const playerNames = Array.from(
-      { length: 11 },
-      (_, index) => `p${index + 1}`,
-    );
+    const playerNames = Array.from({ length: 11 }, (_, index) => `p${index + 1}`);
     const created = viewOf(
       await request(server)
         .post("/api/matches")
@@ -784,16 +709,12 @@ describe("Matches API (e2e)", () => {
     expect(missing.status).toBe(404);
     expect(missing.body).toEqual({ code: "MATCH_NOT_FOUND" });
 
-    const disabled = viewOf(
-      await request(server).post("/api/matches").send(createBody),
-    );
+    const disabled = viewOf(await request(server).post("/api/matches").send(createBody));
     await request(server)
       .post(`/api/matches/${disabled.code}/start`)
       .set("If-Match", String(disabled.version))
       .send();
-    const off = await request(server).get(
-      `/api/matches/${disabled.code}/split`,
-    );
+    const off = await request(server).get(`/api/matches/${disabled.code}/split`);
     expect(off.status).toBe(422);
     expect(off.body).toEqual({ code: "SPLIT_DISABLED" });
 
@@ -812,9 +733,7 @@ describe("Matches API (e2e)", () => {
           playerNames: createBody.playerNames,
         }),
     );
-    const draftSplit = await request(server).get(
-      `/api/matches/${draft.code}/split`,
-    );
+    const draftSplit = await request(server).get(`/api/matches/${draft.code}/split`);
     expect(draftSplit.status).toBe(422);
     expect(draftSplit.body).toEqual({ code: "INVALID_STATUS" });
 

@@ -58,9 +58,7 @@ export class InMemoryMatchesRepository extends MatchesRepository {
     };
     this.matches.set(id, cloneMatch(match));
     this.codeIndex.set(input.code, id);
-    this.events.set(id, [
-      { seq: 1, event: input.event, revokedAt: null, createdAt: now },
-    ]);
+    this.events.set(id, [{ seq: 1, event: input.event, revokedAt: null, createdAt: now }]);
     return Promise.resolve(cloneMatch(match));
   }
 
@@ -147,10 +145,7 @@ export class InMemoryMatchesRepository extends MatchesRepository {
     const events = this.events.get(input.matchId) ?? [];
     const target = [...events]
       .reverse()
-      .find(
-        (event) =>
-          event.revokedAt === null && UNDOABLE_EVENTS.has(event.event.type),
-      );
+      .find((event) => event.revokedAt === null && UNDOABLE_EVENTS.has(event.event.type));
     if (target === undefined) {
       throw new DomainError("NOTHING_TO_UNDO");
     }
@@ -195,10 +190,7 @@ export class InMemoryMatchesRepository extends MatchesRepository {
     return cloneMatch(updated);
   }
 
-  private requireVersion(
-    matchId: string,
-    expectedVersion: number,
-  ): StoredMatch {
+  private requireVersion(matchId: string, expectedVersion: number): StoredMatch {
     const match = this.matches.get(matchId);
     if (match === undefined || match.version !== expectedVersion) {
       throw new DomainError("VERSION_CONFLICT");

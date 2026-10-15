@@ -35,10 +35,7 @@ function ctxFor(ids: readonly string[]): CommandContext {
   };
 }
 
-function decideEvent(
-  state: MatchState | null,
-  command: Parameters<typeof decide>[1],
-): Event {
+function decideEvent(state: MatchState | null, command: Parameters<typeof decide>[1]): Event {
   const result = decide(state, command, ctxFor(["p5", "p6", "p7", "t2", "t3"]));
   if (!("event" in result)) {
     throw new Error("expected an event from decide()");
@@ -80,9 +77,7 @@ export function runMatchesRepositoryContract(
       expect(found).toEqual(stored);
 
       const events = await repository.listActiveEvents(stored.id);
-      expect(events).toEqual([
-        { seq: 1, event, createdAt: events[0]?.createdAt },
-      ]);
+      expect(events).toEqual([{ seq: 1, event, createdAt: events[0]?.createdAt }]);
     });
 
     it("CEN-2: findByCode returns null for an unknown code", async () => {
@@ -235,10 +230,7 @@ export function runMatchesRepositoryContract(
       expect(stored.snapshot).toEqual(activeSnapshot);
 
       const events = await repository.listActiveEvents(created.id);
-      expect(events.map((e) => e.event.type)).toEqual([
-        "MATCH_CREATED",
-        "MATCH_STARTED",
-      ]);
+      expect(events.map((e) => e.event.type)).toEqual(["MATCH_CREATED", "MATCH_STARTED"]);
     });
 
     it("CEN-7: revokeLast skips events that are not undoable", async () => {

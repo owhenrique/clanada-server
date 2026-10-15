@@ -3,10 +3,7 @@ import { InjectPinoLogger, PinoLogger } from "nestjs-pino";
 import { Clock } from "../../../shared/ports/clock";
 import { IdGenerator } from "../../../shared/ports/id-generator";
 import { RandomSource } from "../../../shared/ports/random-source";
-import {
-  DomainError,
-  VersionConflictError,
-} from "../../../shared/errors/domain-error";
+import { DomainError, VersionConflictError } from "../../../shared/errors/domain-error";
 import {
   applyEvent,
   assertValidState,
@@ -41,14 +38,9 @@ import { findUndoableTarget } from "./undoable-target";
 
 const MAX_CODE_ATTEMPTS = 5;
 
-const TIMER_RESET_EVENT_TYPES: ReadonlySet<Event["type"]> = new Set([
-  "GAME_WON",
-  "GAME_DRAWN",
-]);
+const TIMER_RESET_EVENT_TYPES: ReadonlySet<Event["type"]> = new Set(["GAME_WON", "GAME_DRAWN"]);
 
-function requireEvent(
-  result: { event: Event } | { penaltiesRequired: true },
-): Event {
+function requireEvent(result: { event: Event } | { penaltiesRequired: true }): Event {
   if ("event" in result) {
     return result.event;
   }
@@ -66,10 +58,7 @@ export class MatchesService {
     @InjectPinoLogger(MatchesService.name) private readonly logger: PinoLogger,
   ) {}
 
-  async create(input: {
-    config: CreateMatchConfig;
-    playerNames: string[];
-  }): Promise<MatchView> {
+  async create(input: { config: CreateMatchConfig; playerNames: string[] }): Promise<MatchView> {
     try {
       const ctx = this.contextFor(false);
       const result = decide(
@@ -191,10 +180,7 @@ export class MatchesService {
     return stored;
   }
 
-  private assertSplitReady(
-    stored: StoredMatch,
-    activeEvents: readonly StoredEvent[],
-  ): void {
+  private assertSplitReady(stored: StoredMatch, activeEvents: readonly StoredEvent[]): void {
     if (!stored.snapshot.config.split.enabled) {
       throw new DomainError("SPLIT_DISABLED");
     }
@@ -208,20 +194,13 @@ export class MatchesService {
     if (startedAt === null) {
       throw new DomainError("SPLIT_NOT_READY");
     }
-    const dueAtMs = splitDueAtMs(
-      startedAt.getTime(),
-      stored.snapshot.config.split.durationMinutes,
-    );
+    const dueAtMs = splitDueAtMs(startedAt.getTime(), stored.snapshot.config.split.durationMinutes);
     if (this.clock.now().getTime() < dueAtMs) {
       throw new DomainError("SPLIT_NOT_READY");
     }
   }
 
-  async timer(
-    code: string,
-    expectedVersion: number,
-    timerAction: TimerAction,
-  ): Promise<MatchView> {
+  async timer(code: string, expectedVersion: number, timerAction: TimerAction): Promise<MatchView> {
     const action = `timer.${timerAction}`;
     try {
       const stored = await this.repository.findByCode(code);
@@ -235,11 +214,7 @@ export class MatchesService {
         throw new DomainError("INVALID_STATUS");
       }
 
-      const timer = applyTimerAction(
-        stored.timer,
-        timerAction,
-        this.clock.now(),
-      );
+      const timer = applyTimerAction(stored.timer, timerAction, this.clock.now());
       if (timer === stored.timer) {
         return await this.buildView(stored);
       }
@@ -350,9 +325,7 @@ export class MatchesService {
       }
       const target = activeEvents[targetIndex];
       if (target === undefined) {
-        throw new Error(
-          "invariant: findUndoableTarget returned an out-of-range index",
-        );
+        throw new Error("invariant: findUndoableTarget returned an out-of-range index");
       }
 
       const remainingEvents = activeEvents

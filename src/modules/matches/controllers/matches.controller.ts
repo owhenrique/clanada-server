@@ -143,10 +143,7 @@ export class MatchesController {
   @ApiExtraModels(MatchView, PenaltiesRequiredView)
   @ApiOkResponse({
     schema: {
-      oneOf: [
-        { $ref: getSchemaPath(MatchView) },
-        { $ref: getSchemaPath(PenaltiesRequiredView) },
-      ],
+      oneOf: [{ $ref: getSchemaPath(MatchView) }, { $ref: getSchemaPath(PenaltiesRequiredView) }],
     },
   })
   draw(
@@ -248,10 +245,7 @@ export class MatchesController {
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: "If-Match", required: true })
   @ApiOkResponse({ type: MatchView })
-  startTimer(
-    @Param("code") code: string,
-    @IfMatch() version: number,
-  ): Promise<MatchView> {
+  startTimer(@Param("code") code: string, @IfMatch() version: number): Promise<MatchView> {
     return this.matchesService.timer(code, version, "start");
   }
 
@@ -259,10 +253,7 @@ export class MatchesController {
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: "If-Match", required: true })
   @ApiOkResponse({ type: MatchView })
-  pauseTimer(
-    @Param("code") code: string,
-    @IfMatch() version: number,
-  ): Promise<MatchView> {
+  pauseTimer(@Param("code") code: string, @IfMatch() version: number): Promise<MatchView> {
     return this.matchesService.timer(code, version, "pause");
   }
 
@@ -270,10 +261,7 @@ export class MatchesController {
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: "If-Match", required: true })
   @ApiOkResponse({ type: MatchView })
-  resetTimer(
-    @Param("code") code: string,
-    @IfMatch() version: number,
-  ): Promise<MatchView> {
+  resetTimer(@Param("code") code: string, @IfMatch() version: number): Promise<MatchView> {
     return this.matchesService.timer(code, version, "reset");
   }
 
@@ -281,10 +269,7 @@ export class MatchesController {
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: "If-Match", required: true })
   @ApiOkResponse({ type: MatchView })
-  undo(
-    @Param("code") code: string,
-    @IfMatch() version: number,
-  ): Promise<MatchView> {
+  undo(@Param("code") code: string, @IfMatch() version: number): Promise<MatchView> {
     return this.matchesService.undo(code, version);
   }
 }

@@ -5,10 +5,7 @@ import { InMemoryMatchesRepository } from "./in-memory-matches.repository";
 import { MatchCodeCollisionError } from "./matches.repository";
 import { runMatchesRepositoryContract } from "./matches-repository-contract-test";
 
-runMatchesRepositoryContract(
-  "in-memory",
-  () => new InMemoryMatchesRepository(),
-);
+runMatchesRepositoryContract("in-memory", () => new InMemoryMatchesRepository());
 
 describe("InMemoryMatchesRepository.create code collision", () => {
   const snapshot: MatchState = {
@@ -34,8 +31,8 @@ describe("InMemoryMatchesRepository.create code collision", () => {
     const repository = new InMemoryMatchesRepository();
     await repository.create({ code: "AB23CD45", event, snapshot });
 
-    await expect(
-      repository.create({ code: "AB23CD45", event, snapshot }),
-    ).rejects.toBeInstanceOf(MatchCodeCollisionError);
+    await expect(repository.create({ code: "AB23CD45", event, snapshot })).rejects.toBeInstanceOf(
+      MatchCodeCollisionError,
+    );
   });
 });
