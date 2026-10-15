@@ -3,6 +3,7 @@ import { at, shuffle, requireState, recordingIdFactory } from "./support";
 import { normalizeName, hasUnresolvedDuplicates } from "./players";
 import {
   resolveRuleToggles,
+  resolveSplitConfig,
   type RuleToggles,
   type Player,
   type Team,
@@ -114,7 +115,10 @@ export function orderPlayers(
     return shuffle(players, rng);
   }
   const fieldCount = Math.min(seatedCount, 2 * teamSize);
-  return [...shuffle(players.slice(0, fieldCount), rng), ...players.slice(fieldCount)];
+  return [
+    ...shuffle(players.slice(0, fieldCount), rng),
+    ...players.slice(fieldCount),
+  ];
 }
 
 export function decideCreate(
@@ -129,9 +133,19 @@ export function decideCreate(
   if (hasUnresolvedDuplicates(players)) {
     throw new DomainError("DUPLICATE_PLAYER_NAMES");
   }
-  const config = { ...command.config, ruleToggles: resolveRuleToggles(command.config.ruleToggles) };
+  const config = {
+    ...command.config,
+    ruleToggles: resolveRuleToggles(command.config.ruleToggles),
+    split: resolveSplitConfig(command.config.split),
+  };
   const fullTeams = fullTeamCount(players.length, config.teamSize);
-  const order = orderPlayers(players, fullTeams * config.teamSize, config.teamSize, config.ruleToggles, ctx.random);
+  const order = orderPlayers(
+    players,
+    fullTeams * config.teamSize,
+    config.teamSize,
+    config.ruleToggles,
+    ctx.random,
+  );
   const factory = recordingIdFactory(ctx.nextId);
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
@@ -165,7 +179,10 @@ export function decideReshuffle(
   ctx: CommandContext,
 ): DecideResult {
   const current = requireState(state);
-  const seatedCount = current.teams.reduce((count, team) => count + team.players.length, 0);
+  const seatedCount = current.teams.reduce(
+    (count, team) => count + team.players.length,
+    0,
+  );
   const order = orderPlayers(
     flattenPlayers(current),
     seatedCount,

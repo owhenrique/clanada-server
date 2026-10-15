@@ -12,7 +12,9 @@ export const LEGACY_RULE_TOGGLES: RuleToggles = {
 
 const RULE_KEYS = Object.keys(DEFAULT_RULE_TOGGLES) as (keyof RuleToggles)[];
 
-export function resolveRuleToggles(partial: Partial<RuleToggles> | undefined): RuleToggles {
+export function resolveRuleToggles(
+  partial: Partial<RuleToggles> | undefined,
+): RuleToggles {
   return { ...DEFAULT_RULE_TOGGLES, ...partial };
 }
 
@@ -29,6 +31,61 @@ export function decodeRuleToggles(value: unknown): RuleToggles {
     }
   }
   return resolveRuleToggles(partial);
+}
+
+export type SplitConfig = {
+  enabled: boolean;
+  hourlyRateCents: number;
+  durationMinutes: number;
+};
+
+export const DEFAULT_SPLIT_CONFIG: SplitConfig = {
+  enabled: false,
+  hourlyRateCents: 10000,
+  durationMinutes: 120,
+};
+
+export function resolveSplitConfig(
+  partial: Partial<SplitConfig> | undefined,
+): SplitConfig {
+  return { ...DEFAULT_SPLIT_CONFIG, ...partial };
+}
+
+function isValidSplitRate(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 100000
+  );
+}
+
+function isValidSplitDuration(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 30 &&
+    value <= 240 &&
+    value % 15 === 0
+  );
+}
+
+export function decodeSplitConfig(value: unknown): SplitConfig {
+  if (typeof value !== "object" || value === null) {
+    return DEFAULT_SPLIT_CONFIG;
+  }
+  const stored = value as Record<string, unknown>;
+  const partial: Partial<SplitConfig> = {};
+  if (typeof stored.enabled === "boolean") {
+    partial.enabled = stored.enabled;
+  }
+  if (isValidSplitRate(stored.hourlyRateCents)) {
+    partial.hourlyRateCents = stored.hourlyRateCents;
+  }
+  if (isValidSplitDuration(stored.durationMinutes)) {
+    partial.durationMinutes = stored.durationMinutes;
+  }
+  return resolveSplitConfig(partial);
 }
 
 export type Player = {
@@ -50,6 +107,7 @@ export type MatchConfig = {
   colors: string[];
   gameMinutes: number;
   ruleToggles: RuleToggles;
+  split: SplitConfig;
 };
 
 export type MatchState = {
@@ -152,8 +210,9 @@ export type CommandContext = {
   timerRunning: boolean;
 };
 
-export type CreateMatchConfig = Omit<MatchConfig, "ruleToggles"> & {
+export type CreateMatchConfig = Omit<MatchConfig, "ruleToggles" | "split"> & {
   ruleToggles?: Partial<RuleToggles>;
+  split?: Partial<SplitConfig>;
 };
 
 export type Command =

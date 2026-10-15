@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PinoLogger } from "nestjs-pino";
-import { DomainError, VersionConflictError } from "../../../shared/errors/domain-error";
+import {
+  DomainError,
+  VersionConflictError,
+} from "../../../shared/errors/domain-error";
 import type { Clock } from "../../../shared/ports/clock";
 import type { IdGenerator } from "../../../shared/ports/id-generator";
 import type { RandomSource } from "../../../shared/ports/random-source";
 import type { MatchConfig } from "../../../domain/match";
+import { DEFAULT_SPLIT_CONFIG } from "../../../domain/match";
 import { EventLogGameHistoryRepository } from "../repositories/event-log-game-history.repository";
 import { InMemoryMatchesRepository } from "../repositories/in-memory-matches.repository";
 import {
@@ -20,7 +24,13 @@ import {
 import { MatchesService } from "./matches.service";
 import type { MatchView } from "./match-view";
 
-const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
+const config: MatchConfig = {
+  teamSize: 2,
+  colors: ["verde", "vermelho"],
+  gameMinutes: 10,
+  ruleToggles: { arrivalPriority: false },
+  split: DEFAULT_SPLIT_CONFIG,
+};
 const playerNames = ["Ana", "Beto", "Caio", "Duda"];
 
 function sequentialIds(prefix: string): IdGenerator {
@@ -225,14 +235,18 @@ describe("MatchesService", () => {
     const createSpy = vi.spyOn(repository, "create");
     const { service } = makeService({ repository });
 
-    await expect(service.create({ config, playerNames: ["Ana", "ana"] })).rejects.toMatchObject({
+    await expect(
+      service.create({ config, playerNames: ["Ana", "ana"] }),
+    ).rejects.toMatchObject({
       code: "DUPLICATE_PLAYER_NAMES",
     });
     expect(createSpy).not.toHaveBeenCalled();
   });
 
   it("CEN-4: create retries with a new code when the first one collides", async () => {
-    const repository = new CollidingOnceRepository(new InMemoryMatchesRepository());
+    const repository = new CollidingOnceRepository(
+      new InMemoryMatchesRepository(),
+    );
     const { service } = makeService({ repository });
 
     const view = await service.create({ config, playerNames });
@@ -246,7 +260,9 @@ describe("MatchesService", () => {
     const repository = new AlwaysCollidingRepository();
     const { service } = makeService({ repository });
 
-    await expect(service.create({ config, playerNames })).rejects.toBeInstanceOf(MatchCodeCollisionError);
+    await expect(
+      service.create({ config, playerNames }),
+    ).rejects.toBeInstanceOf(MatchCodeCollisionError);
     expect(repository.attempts).toBe(5);
   });
 
@@ -262,14 +278,20 @@ describe("MatchesService", () => {
   it("CEN-7 (unit): get throws MATCH_NOT_FOUND for an unknown code", async () => {
     const { service } = makeService();
 
-    await expect(service.get("ZZZZZZZZ")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.get("ZZZZZZZZ")).rejects.toMatchObject({
+      code: "MATCH_NOT_FOUND",
+    });
   });
 
   it("CEN-8: reshuffle produces a new order and logs the completed action", async () => {
     const { service, logger } = makeService();
     const created = await service.create({ config, playerNames });
 
-    const view = asView(await service.execute(created.code, created.version, { type: "reshuffle" }));
+    const view = asView(
+      await service.execute(created.code, created.version, {
+        type: "reshuffle",
+      }),
+    );
 
     expect(view.version).toBe(2);
     expect(logger.info).toHaveBeenCalledWith({
@@ -283,9 +305,13 @@ describe("MatchesService", () => {
   it("CEN-9: reshuffle outside DRAFT is rejected and logs a warning", async () => {
     const { service, logger, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
-    await expect(service.execute(started.code, started.version, { type: "reshuffle" })).rejects.toMatchObject({
+    await expect(
+      service.execute(started.code, started.version, { type: "reshuffle" }),
+    ).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
     expect(logger.warn).toHaveBeenCalledWith({
@@ -315,8 +341,12 @@ describe("MatchesService", () => {
     );
 
     expect(view.version).toBe(2);
-    expect(view.teams[0]?.players.some((player) => player.id === playerB.id)).toBe(true);
-    expect(view.teams[1]?.players.some((player) => player.id === playerA.id)).toBe(true);
+    expect(
+      view.teams[0]?.players.some((player) => player.id === playerB.id),
+    ).toBe(true);
+    expect(
+      view.teams[1]?.players.some((player) => player.id === playerA.id),
+    ).toBe(true);
   });
 
   it("CEN-11: swap with an unknown player is rejected", async () => {
@@ -340,7 +370,9 @@ describe("MatchesService", () => {
     const sixPlayers = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: sixPlayers });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -369,19 +401,32 @@ describe("MatchesService", () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
 
-    const view = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const view = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
     expect(view.status).toBe("ACTIVE");
     expect(view.version).toBe(2);
   });
 
   it("CEN-14: start is rejected with fewer than 2 teams", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
+    const bigConfig: MatchConfig = {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    };
     const sixNames = ["A", "B", "C", "D", "E", "F"];
     const { service } = makeService();
-    const created = await service.create({ config: bigConfig, playerNames: sixNames });
+    const created = await service.create({
+      config: bigConfig,
+      playerNames: sixNames,
+    });
 
-    await expect(service.execute(created.code, created.version, { type: "start" })).rejects.toMatchObject({
+    await expect(
+      service.execute(created.code, created.version, { type: "start" }),
+    ).rejects.toMatchObject({
       code: "NOT_ENOUGH_TEAMS",
     });
   });
@@ -397,7 +442,11 @@ describe("MatchesService", () => {
     if (!(error instanceof VersionConflictError)) {
       throw new Error("expected a VersionConflictError");
     }
-    expect(error.view).toMatchObject({ code: created.code, version: 1, status: "DRAFT" });
+    expect(error.view).toMatchObject({
+      code: created.code,
+      version: 1,
+      status: "DRAFT",
+    });
 
     const stored = await repository.findByCode(created.code);
     if (stored === null) {
@@ -408,7 +457,9 @@ describe("MatchesService", () => {
   });
 
   it("CEN-17: a real race at append() is retried into a VersionConflictError built from a fresh read", async () => {
-    const repository = new RaceOnFirstAppendRepository(new InMemoryMatchesRepository());
+    const repository = new RaceOnFirstAppendRepository(
+      new InMemoryMatchesRepository(),
+    );
     const { service } = makeService({ repository });
     const created = await service.create({ config, playerNames });
 
@@ -426,10 +477,17 @@ describe("MatchesService", () => {
     const { service, logger } = makeService();
     const created = await service.create({ config, playerNames });
     await service.execute(created.code, created.version, { type: "reshuffle" });
-    const started = asView(await service.execute(created.code, 2, { type: "start" }));
-    await service.execute(started.code, started.version, { type: "reshuffle" }).catch(() => undefined);
+    const started = asView(
+      await service.execute(created.code, 2, { type: "start" }),
+    );
+    await service
+      .execute(started.code, started.version, { type: "reshuffle" })
+      .catch(() => undefined);
 
-    const serialized = JSON.stringify([...logger.info.mock.calls, ...logger.warn.mock.calls]);
+    const serialized = JSON.stringify([
+      ...logger.info.mock.calls,
+      ...logger.warn.mock.calls,
+    ]);
     for (const name of playerNames) {
       expect(serialized).not.toContain(name);
     }
@@ -439,7 +497,9 @@ describe("MatchesService", () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -447,7 +507,10 @@ describe("MatchesService", () => {
     const running = await repository.updateTimer({
       matchId: stored.id,
       expectedVersion: stored.version,
-      timer: { startedAt: new Date("2026-09-22T12:00:00.000Z"), elapsedMs: 30000 },
+      timer: {
+        startedAt: new Date("2026-09-22T12:00:00.000Z"),
+        elapsedMs: 30000,
+      },
     });
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
@@ -455,7 +518,10 @@ describe("MatchesService", () => {
     }
 
     const view = asView(
-      await service.execute(started.code, running.version, { type: "win", loserTeamId: loserId }),
+      await service.execute(started.code, running.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
     );
 
     expect(view.version).toBe(running.version + 1);
@@ -472,14 +538,19 @@ describe("MatchesService", () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const offFieldId = started.teams[2]?.id;
     if (offFieldId === undefined) {
       throw new Error("fixture is missing an off-field team");
     }
 
     await expect(
-      service.execute(started.code, started.version, { type: "win", loserTeamId: offFieldId }),
+      service.execute(started.code, started.version, {
+        type: "win",
+        loserTeamId: offFieldId,
+      }),
     ).rejects.toMatchObject({ code: "TEAM_NOT_ON_FIELD" });
   });
 
@@ -487,7 +558,9 @@ describe("MatchesService", () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -495,7 +568,10 @@ describe("MatchesService", () => {
     const running = await repository.updateTimer({
       matchId: stored.id,
       expectedVersion: stored.version,
-      timer: { startedAt: new Date("2026-09-22T12:00:00.000Z"), elapsedMs: 30000 },
+      timer: {
+        startedAt: new Date("2026-09-22T12:00:00.000Z"),
+        elapsedMs: 30000,
+      },
     });
     const loserId = started.teams[0]?.id;
     if (loserId === undefined) {
@@ -503,7 +579,10 @@ describe("MatchesService", () => {
     }
 
     const view = asView(
-      await service.execute(started.code, running.version, { type: "penalties", loserTeamId: loserId }),
+      await service.execute(started.code, running.version, {
+        type: "penalties",
+        loserTeamId: loserId,
+      }),
     );
 
     expect(view.version).toBe(running.version + 1);
@@ -520,9 +599,13 @@ describe("MatchesService", () => {
     const tenNames = Array.from({ length: 10 }, (_, index) => `Player${index}`);
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: tenNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
-    const view = asView(await service.execute(started.code, started.version, { type: "draw" }));
+    const view = asView(
+      await service.execute(started.code, started.version, { type: "draw" }),
+    );
 
     expect(view.version).toBe(started.version + 1);
     expect(view.timer).toEqual({ startedAt: null, elapsedMs: 0 });
@@ -537,9 +620,13 @@ describe("MatchesService", () => {
   it("S7 CEN-5: draw without an available swap requires penalties without persisting", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
-    const result = await service.execute(started.code, started.version, { type: "draw" });
+    const result = await service.execute(started.code, started.version, {
+      type: "draw",
+    });
 
     expect(result).toEqual({ penaltiesRequired: true });
     const stored = await repository.findByCode(started.code);
@@ -552,14 +639,33 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-6: join compacts the queue into a new team once it reaches teamSize", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
-    const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
+    const bigConfig: MatchConfig = {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    };
+    const fourteenNames = Array.from(
+      { length: 14 },
+      (_, index) => `Player${index}`,
+    );
     const { service } = makeService();
-    const created = await service.create({ config: bigConfig, playerNames: fourteenNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const created = await service.create({
+      config: bigConfig,
+      playerNames: fourteenNames,
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     expect(started.queue).toHaveLength(4);
 
-    const view = asView(await service.execute(started.code, started.version, { type: "join", name: "Fabio" }));
+    const view = asView(
+      await service.execute(started.code, started.version, {
+        type: "join",
+        name: "Fabio",
+      }),
+    );
 
     expect(view.version).toBe(started.version + 1);
     expect(view.queue).toEqual([]);
@@ -567,10 +673,15 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-7: leave with a donor available fills the vacancy from the queue", async () => {
-    const sevenNames = Array.from({ length: 7 }, (_, index) => `Player${index}`);
+    const sevenNames = Array.from(
+      { length: 7 },
+      (_, index) => `Player${index}`,
+    );
     const { service } = makeService();
     const created = await service.create({ config, playerNames: sevenNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     expect(started.queue).toHaveLength(1);
     const donorPlayer = started.queue[0];
     const leavingPlayer = started.teams[2]?.players[0];
@@ -579,25 +690,35 @@ describe("MatchesService", () => {
     }
 
     const view = asView(
-      await service.execute(started.code, started.version, { type: "leave", playerId: leavingPlayer.id }),
+      await service.execute(started.code, started.version, {
+        type: "leave",
+        playerId: leavingPlayer.id,
+      }),
     );
 
     expect(view.version).toBe(started.version + 1);
     expect(view.queue).toEqual([]);
-    expect(view.teams[2]?.players.some((player) => player.id === donorPlayer.id)).toBe(true);
+    expect(
+      view.teams[2]?.players.some((player) => player.id === donorPlayer.id),
+    ).toBe(true);
   });
 
   it("S7 CEN-8: leave without a donor and no fallback is rejected", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const leavingPlayer = started.teams[0]?.players[0];
     if (leavingPlayer === undefined) {
       throw new Error("fixture is missing players");
     }
 
     await expect(
-      service.execute(started.code, started.version, { type: "leave", playerId: leavingPlayer.id }),
+      service.execute(started.code, started.version, {
+        type: "leave",
+        playerId: leavingPlayer.id,
+      }),
     ).rejects.toMatchObject({ code: "NO_DONOR_AVAILABLE" });
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
@@ -609,7 +730,9 @@ describe("MatchesService", () => {
   it("S7 CEN-9: leave without a donor with the fallback reduces the team size", async () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const leavingPlayer = started.teams[0]?.players[0];
     if (leavingPlayer === undefined) {
       throw new Error("fixture is missing players");
@@ -630,7 +753,9 @@ describe("MatchesService", () => {
   it("S7 CEN-10: leave is rejected while an on-field player's timer is running", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -646,19 +771,39 @@ describe("MatchesService", () => {
     }
 
     await expect(
-      service.execute(started.code, running.version, { type: "leave", playerId: leavingPlayer.id }),
+      service.execute(started.code, running.version, {
+        type: "leave",
+        playerId: leavingPlayer.id,
+      }),
     ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
   });
 
   it("S7 CEN-11: change team size redistributes players and compacts the queue", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
-    const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
+    const bigConfig: MatchConfig = {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    };
+    const fourteenNames = Array.from(
+      { length: 14 },
+      (_, index) => `Player${index}`,
+    );
     const { service } = makeService();
-    const created = await service.create({ config: bigConfig, playerNames: fourteenNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const created = await service.create({
+      config: bigConfig,
+      playerNames: fourteenNames,
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
     const view = asView(
-      await service.execute(started.code, started.version, { type: "changeTeamSize", teamSize: 4 }),
+      await service.execute(started.code, started.version, {
+        type: "changeTeamSize",
+        teamSize: 4,
+      }),
     );
 
     expect(view.version).toBe(started.version + 1);
@@ -669,7 +814,9 @@ describe("MatchesService", () => {
   it("S7 CEN-12: change team size is blocked while the timer is running", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -681,29 +828,44 @@ describe("MatchesService", () => {
     });
 
     await expect(
-      service.execute(started.code, running.version, { type: "changeTeamSize", teamSize: 1 }),
+      service.execute(started.code, running.version, {
+        type: "changeTeamSize",
+        teamSize: 1,
+      }),
     ).rejects.toMatchObject({ code: "TIMER_RUNNING" });
   });
 
   it("S7 CEN-13: change team size rejects an equal value and a value leaving fewer than 2 teams", async () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
     await expect(
-      service.execute(started.code, started.version, { type: "changeTeamSize", teamSize: 2 }),
+      service.execute(started.code, started.version, {
+        type: "changeTeamSize",
+        teamSize: 2,
+      }),
     ).rejects.toMatchObject({ code: "TEAM_SIZE_NOT_ALLOWED" });
     await expect(
-      service.execute(started.code, started.version, { type: "changeTeamSize", teamSize: 3 }),
+      service.execute(started.code, started.version, {
+        type: "changeTeamSize",
+        teamSize: 3,
+      }),
     ).rejects.toMatchObject({ code: "TEAM_SIZE_NOT_ALLOWED" });
   });
 
   it("S7 CEN-14: end moves ACTIVE to ENDED", async () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
-    const view = asView(await service.execute(started.code, started.version, { type: "end" }));
+    const view = asView(
+      await service.execute(started.code, started.version, { type: "end" }),
+    );
 
     expect(view.status).toBe("ENDED");
     expect(view.version).toBe(started.version + 1);
@@ -712,32 +874,51 @@ describe("MatchesService", () => {
   it("S7 CEN-15: mutation commands after end are rejected with INVALID_STATUS", async () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
-    const ended = asView(await service.execute(started.code, started.version, { type: "end" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    const ended = asView(
+      await service.execute(started.code, started.version, { type: "end" }),
+    );
     const loserId = ended.teams[0]?.id;
     if (loserId === undefined) {
       throw new Error("fixture is missing teams");
     }
 
     await expect(
-      service.execute(ended.code, ended.version, { type: "win", loserTeamId: loserId }),
+      service.execute(ended.code, ended.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
     ).rejects.toMatchObject({ code: "INVALID_STATUS" });
     await expect(
-      service.execute(ended.code, ended.version, { type: "join", name: "Zeca" }),
+      service.execute(ended.code, ended.version, {
+        type: "join",
+        name: "Zeca",
+      }),
     ).rejects.toMatchObject({ code: "INVALID_STATUS" });
-    await expect(service.undo(ended.code, ended.version)).rejects.toMatchObject({ code: "INVALID_STATUS" });
+    await expect(service.undo(ended.code, ended.version)).rejects.toMatchObject(
+      { code: "INVALID_STATUS" },
+    );
   });
 
   it("S7 CEN-16: undo reverts the most recent undoable event", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
       throw new Error("fixture is missing teams");
     }
-    const won = asView(await service.execute(started.code, started.version, { type: "win", loserTeamId: loserId }));
+    const won = asView(
+      await service.execute(started.code, started.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
+    );
     expect(won.version).toBe(3);
 
     const undone = await service.undo(won.code, won.version);
@@ -748,7 +929,10 @@ describe("MatchesService", () => {
       throw new Error("fixture is missing the match");
     }
     const activeEvents = await repository.listActiveEvents(stored.id);
-    expect(activeEvents.map((entry) => entry.event.type)).toEqual(["MATCH_CREATED", "MATCH_STARTED"]);
+    expect(activeEvents.map((entry) => entry.event.type)).toEqual([
+      "MATCH_CREATED",
+      "MATCH_STARTED",
+    ]);
     expect(undone.teams).toEqual(started.teams);
     expect(undone.queue).toEqual(started.queue);
   });
@@ -757,21 +941,47 @@ describe("MatchesService", () => {
     const tenNames = Array.from({ length: 10 }, (_, index) => `Player${index}`);
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: tenNames });
-    const reshuffled = asView(await service.execute(created.code, created.version, { type: "reshuffle" }));
-    const started = asView(await service.execute(reshuffled.code, reshuffled.version, { type: "start" }));
+    const reshuffled = asView(
+      await service.execute(created.code, created.version, {
+        type: "reshuffle",
+      }),
+    );
+    const started = asView(
+      await service.execute(reshuffled.code, reshuffled.version, {
+        type: "start",
+      }),
+    );
     expect(started.version).toBe(3);
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
       throw new Error("fixture is missing teams");
     }
-    const won = asView(await service.execute(started.code, started.version, { type: "win", loserTeamId: loserId }));
-    const joined = asView(await service.execute(won.code, won.version, { type: "join", name: "Extra" }));
-    const drawn = asView(await service.execute(joined.code, joined.version, { type: "draw" }));
+    const won = asView(
+      await service.execute(started.code, started.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
+    );
+    const joined = asView(
+      await service.execute(won.code, won.version, {
+        type: "join",
+        name: "Extra",
+      }),
+    );
+    const drawn = asView(
+      await service.execute(joined.code, joined.version, { type: "draw" }),
+    );
     expect(drawn.version).toBe(6);
 
     const afterFirstUndo = await service.undo(drawn.code, drawn.version);
-    const afterSecondUndo = await service.undo(afterFirstUndo.code, afterFirstUndo.version);
-    const afterThirdUndo = await service.undo(afterSecondUndo.code, afterSecondUndo.version);
+    const afterSecondUndo = await service.undo(
+      afterFirstUndo.code,
+      afterFirstUndo.version,
+    );
+    const afterThirdUndo = await service.undo(
+      afterSecondUndo.code,
+      afterSecondUndo.version,
+    );
 
     expect(afterThirdUndo.version).toBe(9);
     expect(afterThirdUndo.status).toBe("ACTIVE");
@@ -804,10 +1014,14 @@ describe("MatchesService", () => {
         playerBId: playerB.id,
       }),
     );
-    const started = asView(await service.execute(swapped.code, swapped.version, { type: "start" }));
+    const started = asView(
+      await service.execute(swapped.code, swapped.version, { type: "start" }),
+    );
     expect(started.version).toBe(3);
 
-    await expect(service.undo(started.code, started.version)).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
+    await expect(
+      service.undo(started.code, started.version),
+    ).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -824,10 +1038,14 @@ describe("MatchesService", () => {
   it("S7 CEN-19: undo right after start has nothing to undo", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     expect(started.version).toBe(2);
 
-    await expect(service.undo(started.code, started.version)).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
+    await expect(
+      service.undo(started.code, started.version),
+    ).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
@@ -836,7 +1054,8 @@ describe("MatchesService", () => {
   });
 
   it("S7 CEN-20: undo outside ACTIVE is rejected with INVALID_STATUS", async () => {
-    const { service: draftService, repository: draftRepository } = makeService();
+    const { service: draftService, repository: draftRepository } =
+      makeService();
     const draftCreated = await draftService.create({ config, playerNames });
     const draftPlayerA = draftCreated.teams[0]?.players[0];
     const draftPlayerB = draftCreated.teams[1]?.players[0];
@@ -851,7 +1070,9 @@ describe("MatchesService", () => {
       }),
     );
 
-    await expect(draftService.undo(draftSwapped.code, draftSwapped.version)).rejects.toMatchObject({
+    await expect(
+      draftService.undo(draftSwapped.code, draftSwapped.version),
+    ).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
     const draftStored = await draftRepository.findByCode(draftSwapped.code);
@@ -863,28 +1084,46 @@ describe("MatchesService", () => {
     const { service: endedService } = makeService();
     const endedCreated = await endedService.create({ config, playerNames });
     const endedStarted = asView(
-      await endedService.execute(endedCreated.code, endedCreated.version, { type: "start" }),
+      await endedService.execute(endedCreated.code, endedCreated.version, {
+        type: "start",
+      }),
     );
-    const ended = asView(await endedService.execute(endedStarted.code, endedStarted.version, { type: "end" }));
+    const ended = asView(
+      await endedService.execute(endedStarted.code, endedStarted.version, {
+        type: "end",
+      }),
+    );
 
-    await expect(endedService.undo(ended.code, ended.version)).rejects.toMatchObject({ code: "INVALID_STATUS" });
+    await expect(
+      endedService.undo(ended.code, ended.version),
+    ).rejects.toMatchObject({ code: "INVALID_STATUS" });
   });
 
   it("S7 CEN-21: undo does not touch the timer", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
       throw new Error("fixture is missing teams");
     }
-    const won = asView(await service.execute(started.code, started.version, { type: "win", loserTeamId: loserId }));
+    const won = asView(
+      await service.execute(started.code, started.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
+    );
     const stored = await repository.findByCode(won.code);
     if (stored === null) {
       throw new Error("fixture is missing the match");
     }
-    const customTimer = { startedAt: new Date("2026-09-22T12:00:00.000Z"), elapsedMs: 120000 };
+    const customTimer = {
+      startedAt: new Date("2026-09-22T12:00:00.000Z"),
+      elapsedMs: 120000,
+    };
     const withTimer = await repository.updateTimer({
       matchId: stored.id,
       expectedVersion: stored.version,
@@ -894,7 +1133,10 @@ describe("MatchesService", () => {
     const undone = await service.undo(won.code, withTimer.version);
 
     expect(undone.version).toBe(withTimer.version + 1);
-    expect(undone.timer).toEqual({ startedAt: customTimer.startedAt.toISOString(), elapsedMs: 120000 });
+    expect(undone.timer).toEqual({
+      startedAt: customTimer.startedAt.toISOString(),
+      elapsedMs: 120000,
+    });
   });
 
   it("S7 CEN-22: canUndo reflects whether /undo would actually succeed", async () => {
@@ -915,45 +1157,85 @@ describe("MatchesService", () => {
     expect(draftSwapped.canUndo).toBe(false);
 
     const { service: onlySwapService } = makeService();
-    const onlySwapCreated = await onlySwapService.create({ config, playerNames });
+    const onlySwapCreated = await onlySwapService.create({
+      config,
+      playerNames,
+    });
     const onlySwapPlayerA = onlySwapCreated.teams[0]?.players[0];
     const onlySwapPlayerB = onlySwapCreated.teams[1]?.players[0];
     if (onlySwapPlayerA === undefined || onlySwapPlayerB === undefined) {
       throw new Error("fixture is missing players");
     }
     const onlySwapSwapped = asView(
-      await onlySwapService.execute(onlySwapCreated.code, onlySwapCreated.version, {
-        type: "swap",
-        playerAId: onlySwapPlayerA.id,
-        playerBId: onlySwapPlayerB.id,
-      }),
+      await onlySwapService.execute(
+        onlySwapCreated.code,
+        onlySwapCreated.version,
+        {
+          type: "swap",
+          playerAId: onlySwapPlayerA.id,
+          playerBId: onlySwapPlayerB.id,
+        },
+      ),
     );
     const onlySwapStarted = asView(
-      await onlySwapService.execute(onlySwapSwapped.code, onlySwapSwapped.version, { type: "start" }),
+      await onlySwapService.execute(
+        onlySwapSwapped.code,
+        onlySwapSwapped.version,
+        { type: "start" },
+      ),
     );
     expect(onlySwapStarted.canUndo).toBe(false);
 
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service: wonService } = makeService();
-    const wonCreated = await wonService.create({ config, playerNames: sixNames });
-    const wonStarted = asView(await wonService.execute(wonCreated.code, wonCreated.version, { type: "start" }));
+    const wonCreated = await wonService.create({
+      config,
+      playerNames: sixNames,
+    });
+    const wonStarted = asView(
+      await wonService.execute(wonCreated.code, wonCreated.version, {
+        type: "start",
+      }),
+    );
     const wonLoserId = wonStarted.teams[1]?.id;
     if (wonLoserId === undefined) {
       throw new Error("fixture is missing teams");
     }
     const won = asView(
-      await wonService.execute(wonStarted.code, wonStarted.version, { type: "win", loserTeamId: wonLoserId }),
+      await wonService.execute(wonStarted.code, wonStarted.version, {
+        type: "win",
+        loserTeamId: wonLoserId,
+      }),
     );
     expect(won.canUndo).toBe(true);
   });
 
   it("S7 CEN-23: undo logs the revoked event type, and rejection logs the domain code", async () => {
-    const bigConfig: MatchConfig = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
-    const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
+    const bigConfig: MatchConfig = {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    };
+    const fourteenNames = Array.from(
+      { length: 14 },
+      (_, index) => `Player${index}`,
+    );
     const { service, logger } = makeService();
-    const created = await service.create({ config: bigConfig, playerNames: fourteenNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
-    const joined = asView(await service.execute(started.code, started.version, { type: "join", name: "Extra" }));
+    const created = await service.create({
+      config: bigConfig,
+      playerNames: fourteenNames,
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    const joined = asView(
+      await service.execute(started.code, started.version, {
+        type: "join",
+        name: "Extra",
+      }),
+    );
 
     const undone = await service.undo(joined.code, joined.version);
 
@@ -964,7 +1246,9 @@ describe("MatchesService", () => {
       version: undone.version,
     });
 
-    await expect(service.undo(undone.code, undone.version)).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
+    await expect(
+      service.undo(undone.code, undone.version),
+    ).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
     expect(logger.warn).toHaveBeenCalledWith({
       action: "undo",
       matchCode: undone.code,
@@ -974,9 +1258,14 @@ describe("MatchesService", () => {
 });
 
 describe("MatchesService timer (S8)", () => {
-  async function startedMatch(service: MatchesService, names: string[] = playerNames): Promise<MatchView> {
+  async function startedMatch(
+    service: MatchesService,
+    names: string[] = playerNames,
+  ): Promise<MatchView> {
     const created = await service.create({ config, playerNames: names });
-    return asView(await service.execute(created.code, created.version, { type: "start" }));
+    return asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
   }
 
   it("CEN-6: start, pause and reset persist the timer, bump the version and record no event", async () => {
@@ -999,7 +1288,10 @@ describe("MatchesService timer (S8)", () => {
       started.version + 2,
       started.version + 3,
     ]);
-    expect(running.timer).toEqual({ startedAt: "2026-09-22T12:00:00.000Z", elapsedMs: 0 });
+    expect(running.timer).toEqual({
+      startedAt: "2026-09-22T12:00:00.000Z",
+      elapsedMs: 0,
+    });
     expect(paused.timer).toEqual({ startedAt: null, elapsedMs: 45000 });
     expect(zeroed.timer).toEqual({ startedAt: null, elapsedMs: 0 });
     expect(await repository.listActiveEvents(stored.id)).toEqual(eventsBefore);
@@ -1013,7 +1305,11 @@ describe("MatchesService timer (S8)", () => {
       ["timer.pause", paused],
       ["timer.reset", zeroed],
     ] as const) {
-      expect(logger.info).toHaveBeenCalledWith({ action, matchCode: started.code, version: view.version });
+      expect(logger.info).toHaveBeenCalledWith({
+        action,
+        matchCode: started.code,
+        version: view.version,
+      });
     }
   });
 
@@ -1030,7 +1326,10 @@ describe("MatchesService timer (S8)", () => {
     expect(updateTimer).not.toHaveBeenCalled();
   });
 
-  async function lockedFixture(): Promise<{ service: MatchesService; running: MatchView }> {
+  async function lockedFixture(): Promise<{
+    service: MatchesService;
+    running: MatchView;
+  }> {
     const nineNames = Array.from({ length: 9 }, (_, index) => `Player${index}`);
     const { service } = makeService();
     const started = await startedMatch(service, nineNames);
@@ -1045,7 +1344,11 @@ describe("MatchesService timer (S8)", () => {
     const onFieldPlayer = running.teams[0]?.players[0];
     const waitingPlayer = running.teams[2]?.players[0];
     const queuedPlayer = running.queue[0];
-    if (onFieldPlayer === undefined || waitingPlayer === undefined || queuedPlayer === undefined) {
+    if (
+      onFieldPlayer === undefined ||
+      waitingPlayer === undefined ||
+      queuedPlayer === undefined
+    ) {
       throw new Error("fixture is missing players");
     }
 
@@ -1057,14 +1360,23 @@ describe("MatchesService timer (S8)", () => {
       }),
     ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
     await expect(
-      service.execute(running.code, running.version, { type: "leave", playerId: onFieldPlayer.id }),
+      service.execute(running.code, running.version, {
+        type: "leave",
+        playerId: onFieldPlayer.id,
+      }),
     ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
     await expect(
-      service.execute(running.code, running.version, { type: "changeTeamSize", teamSize: 1 }),
+      service.execute(running.code, running.version, {
+        type: "changeTeamSize",
+        teamSize: 1,
+      }),
     ).rejects.toMatchObject({ code: "TIMER_RUNNING" });
 
     const afterQueueLeave = asView(
-      await service.execute(running.code, running.version, { type: "leave", playerId: queuedPlayer.id }),
+      await service.execute(running.code, running.version, {
+        type: "leave",
+        playerId: queuedPlayer.id,
+      }),
     );
     expect(afterQueueLeave.version).toBe(running.version + 1);
     expect(afterQueueLeave.queue).toEqual([]);
@@ -1079,7 +1391,10 @@ describe("MatchesService timer (S8)", () => {
 
     const paused = await service.timer(running.code, running.version, "pause");
     const view = asView(
-      await service.execute(paused.code, paused.version, { type: "leave", playerId: onFieldPlayer.id }),
+      await service.execute(paused.code, paused.version, {
+        type: "leave",
+        playerId: onFieldPlayer.id,
+      }),
     );
 
     expect(view.version).toBe(paused.version + 1);
@@ -1088,37 +1403,61 @@ describe("MatchesService timer (S8)", () => {
   it("CEN-10: timer commands require ACTIVE, a matching version and an existing match", async () => {
     const { service, logger } = makeService();
     const draft = await service.create({ config, playerNames });
-    await expect(service.timer(draft.code, draft.version, "start")).rejects.toMatchObject({
+    await expect(
+      service.timer(draft.code, draft.version, "start"),
+    ).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
-    expect(logger.warn).toHaveBeenCalledWith({ action: "timer.start", matchCode: draft.code, code: "INVALID_STATUS" });
+    expect(logger.warn).toHaveBeenCalledWith({
+      action: "timer.start",
+      matchCode: draft.code,
+      code: "INVALID_STATUS",
+    });
 
     const started = await startedMatch(service);
-    const ended = asView(await service.execute(started.code, started.version, { type: "end" }));
-    await expect(service.timer(ended.code, ended.version, "start")).rejects.toMatchObject({
+    const ended = asView(
+      await service.execute(started.code, started.version, { type: "end" }),
+    );
+    await expect(
+      service.timer(ended.code, ended.version, "start"),
+    ).rejects.toMatchObject({
       code: "INVALID_STATUS",
     });
 
     const active = await startedMatch(service);
     const stale = service.timer(active.code, active.version - 1, "start");
     await expect(stale).rejects.toBeInstanceOf(VersionConflictError);
-    await expect(stale).rejects.toMatchObject({ view: { version: active.version } });
+    await expect(stale).rejects.toMatchObject({
+      view: { version: active.version },
+    });
 
-    await expect(service.timer("ZZZZZZZZ", 1, "start")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.timer("ZZZZZZZZ", 1, "start")).rejects.toMatchObject({
+      code: "MATCH_NOT_FOUND",
+    });
   });
 
   it("F3 CEN-7 (unit): listGames projects the active games of a match", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service } = makeService();
     const created = await service.create({ config, playerNames: sixNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
       throw new Error("fixture is missing teams");
     }
-    const won = asView(await service.execute(started.code, started.version, { type: "win", loserTeamId: loserId }));
+    const won = asView(
+      await service.execute(started.code, started.version, {
+        type: "win",
+        loserTeamId: loserId,
+      }),
+    );
     const undone = await service.undo(won.code, won.version);
-    await service.execute(undone.code, undone.version, { type: "penalties", loserTeamId: loserId });
+    await service.execute(undone.code, undone.version, {
+      type: "penalties",
+      loserTeamId: loserId,
+    });
 
     const games = await service.listGames(created.code);
 
@@ -1128,27 +1467,45 @@ describe("MatchesService timer (S8)", () => {
       outcome: "penalties",
       winnerTeamId: started.teams[0]?.id,
     });
-    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
-    expect(games[0]?.teams.map((team) => team.players)).toEqual([started.teams[0]?.players, started.teams[1]?.players]);
+    expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(
+      games[0]?.playedAt,
+    );
+    expect(games[0]?.teams.map((team) => team.players)).toEqual([
+      started.teams[0]?.players,
+      started.teams[1]?.players,
+    ]);
   });
 
   it("F3 CEN-8 (unit): listGames with an unknown code throws MATCH_NOT_FOUND", async () => {
     const { service } = makeService();
 
-    await expect(service.listGames("ZZZZZZZZ")).rejects.toMatchObject({ code: "MATCH_NOT_FOUND" });
+    await expect(service.listGames("ZZZZZZZZ")).rejects.toMatchObject({
+      code: "MATCH_NOT_FOUND",
+    });
   });
 });
 
 describe("MatchesService setup (F8)", () => {
   it("F8 CEN-5: setup reconfigures a draft keeping its code", async () => {
     const { service } = makeService();
-    const created = await service.create({ config: { ...config, teamSize: 5 }, playerNames: ["Ana", "Beto", "Caio"] });
+    const created = await service.create({
+      config: { ...config, teamSize: 5 },
+      playerNames: ["Ana", "Beto", "Caio"],
+    });
 
     const view = asView(
-      await service.execute(created.code, created.version, { type: "setup", config, playerNames }),
+      await service.execute(created.code, created.version, {
+        type: "setup",
+        config,
+        playerNames,
+      }),
     );
 
-    expect(view).toMatchObject({ code: created.code, version: 2, status: "DRAFT" });
+    expect(view).toMatchObject({
+      code: created.code,
+      version: 2,
+      status: "DRAFT",
+    });
     expect(view.config.teamSize).toBe(2);
     expect(view.teams).toHaveLength(2);
   });
@@ -1156,10 +1513,16 @@ describe("MatchesService setup (F8)", () => {
   it("F8 CEN-7: setup outside DRAFT is rejected and the match is unchanged", async () => {
     const { service, repository } = makeService();
     const created = await service.create({ config, playerNames });
-    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
 
     await expect(
-      service.execute(started.code, started.version, { type: "setup", config, playerNames: ["Xavi", "Yuri"] }),
+      service.execute(started.code, started.version, {
+        type: "setup",
+        config,
+        playerNames: ["Xavi", "Yuri"],
+      }),
     ).rejects.toMatchObject({ code: "INVALID_STATUS" });
 
     const stored = await repository.findByCode(created.code);
@@ -1172,7 +1535,11 @@ describe("MatchesService setup (F8)", () => {
     await service.execute(created.code, created.version, { type: "reshuffle" });
 
     const error: unknown = await service
-      .execute(created.code, created.version, { type: "setup", config, playerNames })
+      .execute(created.code, created.version, {
+        type: "setup",
+        config,
+        playerNames,
+      })
       .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(VersionConflictError);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyGameResult,
   compactQueue,
+  DEFAULT_SPLIT_CONFIG,
   duplicateGroups,
   flattenPlayers,
   formInitialState,
@@ -17,8 +18,17 @@ import {
 
 function makeInitialState(): MatchState {
   return formInitialState(
-    Array.from({ length: 10 }, (_, index) => ({ id: `p${index}`, name: `P${index}` })),
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+    Array.from({ length: 10 }, (_, index) => ({
+      id: `p${index}`,
+      name: `P${index}`,
+    })),
+    {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     (index) => `t${index}`,
   );
 }

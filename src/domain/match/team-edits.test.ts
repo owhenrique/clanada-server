@@ -2,8 +2,14 @@ import { describe, it, expect } from "vitest";
 import { mkPlayer, makePlayers, teamId } from "./test-fixtures";
 import { DomainError } from "../../shared/errors/domain-error";
 import type { CommandContext, Player, MatchState, Team } from "./model";
+import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { formInitialState } from "./lineup";
-import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
+import {
+  swapPlayers,
+  changeTeamSize,
+  decideSwap,
+  decideChangeTeamSize,
+} from "./team-edits";
 
 function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
@@ -17,7 +23,13 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
 function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
   return {
     status: "ACTIVE",
-    config: { teamSize: 5, colors, gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+    config: {
+      teamSize: 5,
+      colors,
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     teams,
     queue,
   };
@@ -25,7 +37,17 @@ function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
 
 describe("CEN-9: swapPlayers", () => {
   it("swaps two players who are on different teams", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = swapPlayers(state, "p1", "p6");
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p0",
@@ -51,7 +73,17 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("swaps a team player with a queued player, each landing in the other's slot", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = swapPlayers(state, "p2", "p11");
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p0",
@@ -64,25 +96,51 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("swapping two players on the same team leaves the team's composition unchanged", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = swapPlayers(state, "p0", "p3");
-    expect([...(next.teams[0]?.players.map((p) => p.id) ?? [])].sort()).toEqual([
-      "p0",
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-    ]);
+    expect([...(next.teams[0]?.players.map((p) => p.id) ?? [])].sort()).toEqual(
+      ["p0", "p1", "p2", "p3", "p4"],
+    );
   });
 
   it("is a no-op when swapping a player with itself", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = swapPlayers(state, "p0", "p0");
     expect(next).toEqual(state);
   });
 
   it("is a no-op when either player id does not exist", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(swapPlayers(state, "p0", "ghost")).toEqual(state);
     expect(swapPlayers(state, "ghost", "p0")).toEqual(state);
   });
@@ -101,7 +159,17 @@ describe("CEN-9: swapPlayers", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const snapshot = JSON.stringify(state);
     swapPlayers(state, "p1", "p6");
     expect(JSON.stringify(state)).toBe(snapshot);
@@ -115,55 +183,147 @@ function idFactory(prefix: string): () => string {
 
 describe("CEN-8: changeTeamSize reduces the team size", () => {
   it("sends the last N-m players of every team to the queue, in rotation order, then compacts", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = changeTeamSize(state, 3, idFactory("tNew"));
     expect(next).not.toBeNull();
     const result = next as MatchState;
     expect(result.config.teamSize).toBe(3);
-    expect(result.teams.map((t) => t.id)).toEqual(["t0", "t1", "t2", "tNew0", "tNew1"]);
-    expect(result.teams[0]?.players.map((p) => p.id)).toEqual(["p0", "p1", "p2"]);
+    expect(result.teams.map((t) => t.id)).toEqual([
+      "t0",
+      "t1",
+      "t2",
+      "tNew0",
+      "tNew1",
+    ]);
+    expect(result.teams[0]?.players.map((p) => p.id)).toEqual([
+      "p0",
+      "p1",
+      "p2",
+    ]);
     expect(result.teams[0]?.color).toBe("verde");
-    expect(result.teams[3]?.players.map((p) => p.id)).toEqual(["p3", "p4", "p8"]);
-    expect(result.teams[4]?.players.map((p) => p.id)).toEqual(["p9", "p13", "p14"]);
+    expect(result.teams[3]?.players.map((p) => p.id)).toEqual([
+      "p3",
+      "p4",
+      "p8",
+    ]);
+    expect(result.teams[4]?.players.map((p) => p.id)).toEqual([
+      "p9",
+      "p13",
+      "p14",
+    ]);
     expect(result.queue).toEqual([]);
   });
 });
 
 describe("CEN-9: changeTeamSize increases the team size with enough queue", () => {
   it("fills every team from the front of the queue, in rotation order, without forming a new team", () => {
-    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const base = formInitialState(
+      makePlayers(6),
+      {
+        teamSize: 3,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const state = { ...base, queue: makePlayers(6, "q") };
     const next = changeTeamSize(state, 5, idFactory("tNew"));
     expect(next).not.toBeNull();
     const result = next as MatchState;
     expect(result.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
-    expect(result.teams[0]?.players.map((p) => p.id)).toEqual(["p0", "p1", "p2", "q0", "q1"]);
-    expect(result.teams[1]?.players.map((p) => p.id)).toEqual(["p3", "p4", "p5", "q2", "q3"]);
+    expect(result.teams[0]?.players.map((p) => p.id)).toEqual([
+      "p0",
+      "p1",
+      "p2",
+      "q0",
+      "q1",
+    ]);
+    expect(result.teams[1]?.players.map((p) => p.id)).toEqual([
+      "p3",
+      "p4",
+      "p5",
+      "q2",
+      "q3",
+    ]);
     expect(result.queue.map((p) => p.id)).toEqual(["q4", "q5"]);
   });
 });
 
 describe("CEN-10: changeTeamSize increases by dissolving teams from the end of the rotation", () => {
   it("dissolves the last team into the queue when there are not enough players to fill everyone", () => {
-    const base = formInitialState(makePlayers(9), { teamSize: 3, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const base = formInitialState(
+      makePlayers(9),
+      {
+        teamSize: 3,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const state = { ...base, queue: makePlayers(1, "q") };
     const next = changeTeamSize(state, 5, idFactory("tNew"));
     expect(next).not.toBeNull();
     const result = next as MatchState;
     expect(result.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
-    expect(result.teams[0]?.players.map((p) => p.id)).toEqual(["p0", "p1", "p2", "q0", "p6"]);
-    expect(result.teams[1]?.players.map((p) => p.id)).toEqual(["p3", "p4", "p5", "p7", "p8"]);
+    expect(result.teams[0]?.players.map((p) => p.id)).toEqual([
+      "p0",
+      "p1",
+      "p2",
+      "q0",
+      "p6",
+    ]);
+    expect(result.teams[1]?.players.map((p) => p.id)).toEqual([
+      "p3",
+      "p4",
+      "p5",
+      "p7",
+      "p8",
+    ]);
     expect(result.queue).toEqual([]);
   });
 
   it("rejects when even dissolving everything cannot keep 2 teams", () => {
-    const base = formInitialState(makePlayers(6), { teamSize: 3, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const base = formInitialState(
+      makePlayers(6),
+      {
+        teamSize: 3,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const result = changeTeamSize(base, 10, idFactory("tNew"));
     expect(result).toBeNull();
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const snapshot = JSON.stringify(state);
     changeTeamSize(state, 3, idFactory("tNew"));
     expect(JSON.stringify(state)).toBe(snapshot);
@@ -178,7 +338,13 @@ describe("CEN-5/CEN-6: decideSwap", () => {
   function activeState(): MatchState {
     const state = formInitialState(
       makePlayers(12),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       (i) => `t${i}`,
     );
     return { ...state, status: "ACTIVE" };
@@ -240,7 +406,13 @@ describe("CEN-5/CEN-6: decideSwap", () => {
 function activeState(count: number, teamSize: number): MatchState {
   const state = formInitialState(
     makePlayers(count),
-    { teamSize, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+    {
+      teamSize,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     (i) => `t${i}`,
   );
   return { ...state, status: "ACTIVE" };
@@ -254,7 +426,11 @@ describe("CEN-11: decideChangeTeamSize rejects when fewer than 2 teams would sur
   it("CEN-11: rejects with TEAM_SIZE_NOT_ALLOWED", () => {
     const state = activeState(6, 3);
     try {
-      decideChangeTeamSize(state, { type: "changeTeamSize", teamSize: 10 }, ctx(false));
+      decideChangeTeamSize(
+        state,
+        { type: "changeTeamSize", teamSize: 10 },
+        ctx(false),
+      );
       throw new Error("expected decideChangeTeamSize to throw");
     } catch (error) {
       expect((error as DomainError).code).toBe("TEAM_SIZE_NOT_ALLOWED");
@@ -266,7 +442,11 @@ describe("CEN-12: decideChangeTeamSize rejects invalid values", () => {
   it("CEN-12: rejects teamSize below 1", () => {
     const state = activeState(10, 5);
     try {
-      decideChangeTeamSize(state, { type: "changeTeamSize", teamSize: 0 }, ctx(false));
+      decideChangeTeamSize(
+        state,
+        { type: "changeTeamSize", teamSize: 0 },
+        ctx(false),
+      );
       throw new Error("expected decideChangeTeamSize to throw");
     } catch (error) {
       expect((error as DomainError).code).toBe("TEAM_SIZE_NOT_ALLOWED");
@@ -276,7 +456,11 @@ describe("CEN-12: decideChangeTeamSize rejects invalid values", () => {
   it("CEN-12: rejects a teamSize equal to the current one", () => {
     const state = activeState(10, 5);
     try {
-      decideChangeTeamSize(state, { type: "changeTeamSize", teamSize: 5 }, ctx(false));
+      decideChangeTeamSize(
+        state,
+        { type: "changeTeamSize", teamSize: 5 },
+        ctx(false),
+      );
       throw new Error("expected decideChangeTeamSize to throw");
     } catch (error) {
       expect((error as DomainError).code).toBe("TEAM_SIZE_NOT_ALLOWED");
@@ -288,7 +472,11 @@ describe("CEN-13: decideChangeTeamSize rejects while the timer is running", () =
   it("CEN-13: rejects with TIMER_RUNNING", () => {
     const state = activeState(10, 5);
     try {
-      decideChangeTeamSize(state, { type: "changeTeamSize", teamSize: 4 }, ctx(true));
+      decideChangeTeamSize(
+        state,
+        { type: "changeTeamSize", teamSize: 4 },
+        ctx(true),
+      );
       throw new Error("expected decideChangeTeamSize to throw");
     } catch (error) {
       expect((error as DomainError).code).toBe("TIMER_RUNNING");
@@ -299,7 +487,11 @@ describe("CEN-13: decideChangeTeamSize rejects while the timer is running", () =
 describe("decideChangeTeamSize accepts a valid change", () => {
   it("produces TEAM_SIZE_CHANGED with the recorded new team ids", () => {
     const state = activeState(10, 5);
-    const result = decideChangeTeamSize(state, { type: "changeTeamSize", teamSize: 4 }, ctx(false));
+    const result = decideChangeTeamSize(
+      state,
+      { type: "changeTeamSize", teamSize: 4 },
+      ctx(false),
+    );
     if (!("event" in result)) {
       throw new Error("expected an event");
     }
