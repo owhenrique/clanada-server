@@ -1,6 +1,14 @@
-import { BadRequestException, type ArgumentsHost, type LoggerService } from "@nestjs/common";
+import {
+  BadRequestException,
+  type ArgumentsHost,
+  type LoggerService,
+} from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
-import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
+import {
+  DomainError,
+  VersionConflictError,
+  type DomainErrorCode,
+} from "./domain-error";
 import { DomainExceptionFilter } from "./domain-exception.filter";
 
 type MockHost = {
@@ -16,13 +24,22 @@ function createMockHost(headersSent = false): MockHost {
   const host = {
     switchToHttp: () => ({
       getResponse: () => response,
-      getRequest: () => ({ id: "req-1", method: "GET", originalUrl: "/api/matches", headers: {} }),
+      getRequest: () => ({
+        id: "req-1",
+        method: "GET",
+        originalUrl: "/api/matches",
+        headers: {},
+      }),
     }),
   } as unknown as ArgumentsHost;
   return { host, status, json };
 }
 
-function createMockLogger(): { logger: LoggerService; error: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> } {
+function createMockLogger(): {
+  logger: LoggerService;
+  error: ReturnType<typeof vi.fn>;
+  warn: ReturnType<typeof vi.fn>;
+} {
   const error = vi.fn();
   const warn = vi.fn();
   return { logger: { log: vi.fn(), error, warn }, error, warn };
@@ -42,6 +59,8 @@ describe("DomainExceptionFilter", () => {
     ["TIMER_RUNNING", 422],
     ["TEAM_SIZE_NOT_ALLOWED", 422],
     ["NOTHING_TO_UNDO", 422],
+    ["SPLIT_DISABLED", 422],
+    ["SPLIT_NOT_READY", 422],
     ["TOO_MANY_LOOKUPS", 429],
   ];
 
@@ -90,7 +109,10 @@ describe("DomainExceptionFilter", () => {
     const filter = new DomainExceptionFilter();
     const { host, status, json } = createMockHost();
 
-    filter.catch(new BadRequestException("If-Match header must be a non-negative integer"), host);
+    filter.catch(
+      new BadRequestException("If-Match header must be a non-negative integer"),
+      host,
+    );
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({
@@ -129,7 +151,12 @@ describe("DomainExceptionFilter", () => {
     filter.catch(failure, host);
 
     expect(error).toHaveBeenCalledWith(
-      expect.objectContaining({ err: failure, method: "GET", url: "/api/matches", requestId: "req-1" }),
+      expect.objectContaining({
+        err: failure,
+        method: "GET",
+        url: "/api/matches",
+        requestId: "req-1",
+      }),
       "Unhandled exception",
     );
   });
@@ -140,24 +167,45 @@ describe("DomainExceptionFilter", () => {
 
     filter.catch(new Error("secret internal detail"), host);
 
-    expect(JSON.stringify(json.mock.calls)).not.toContain("secret internal detail");
+    expect(JSON.stringify(json.mock.calls)).not.toContain(
+      "secret internal detail",
+    );
   });
 
   it.each([
-    ["Prisma P1001", Object.assign(new Error("Can't reach database"), { code: "P1001" })],
-    ["ECONNREFUSED", Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" })],
-    ["wrapped cause", new Error("adapter failure", { cause: Object.assign(new Error("x"), { code: "ECONNREFUSED" }) })],
-  ])("maps a database connection failure (%s) to 503 SERVICE_UNAVAILABLE and logs it", (_name, failure) => {
-    const { logger, error } = createMockLogger();
-    const filter = new DomainExceptionFilter(logger);
-    const { host, status, json } = createMockHost();
+    [
+      "Prisma P1001",
+      Object.assign(new Error("Can't reach database"), { code: "P1001" }),
+    ],
+    [
+      "ECONNREFUSED",
+      Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), {
+        code: "ECONNREFUSED",
+      }),
+    ],
+    [
+      "wrapped cause",
+      new Error("adapter failure", {
+        cause: Object.assign(new Error("x"), { code: "ECONNREFUSED" }),
+      }),
+    ],
+  ])(
+    "maps a database connection failure (%s) to 503 SERVICE_UNAVAILABLE and logs it",
+    (_name, failure) => {
+      const { logger, error } = createMockLogger();
+      const filter = new DomainExceptionFilter(logger);
+      const { host, status, json } = createMockHost();
 
-    filter.catch(failure, host);
+      filter.catch(failure, host);
 
-    expect(status).toHaveBeenCalledWith(503);
-    expect(json).toHaveBeenCalledWith({ code: "SERVICE_UNAVAILABLE" });
-    expect(error).toHaveBeenCalledWith(expect.objectContaining({ err: failure }), "Database unavailable");
-  });
+      expect(status).toHaveBeenCalledWith(503);
+      expect(json).toHaveBeenCalledWith({ code: "SERVICE_UNAVAILABLE" });
+      expect(error).toHaveBeenCalledWith(
+        expect.objectContaining({ err: failure }),
+        "Database unavailable",
+      );
+    },
+  );
 
   it("keeps the framework status and body for HttpException without logging an error", () => {
     const { logger, error } = createMockLogger();
