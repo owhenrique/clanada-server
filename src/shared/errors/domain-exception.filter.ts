@@ -1,7 +1,15 @@
-import type { ArgumentsHost, ExceptionFilter, LoggerService } from "@nestjs/common";
+import type {
+  ArgumentsHost,
+  ExceptionFilter,
+  LoggerService,
+} from "@nestjs/common";
 import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
+import {
+  DomainError,
+  VersionConflictError,
+  type DomainErrorCode,
+} from "./domain-error";
 import { isDatabaseUnavailableError } from "./infra-error";
 
 type RequestWithId = Request & { id?: string | number };
@@ -19,41 +27,62 @@ const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
   TIMER_RUNNING: HttpStatus.UNPROCESSABLE_ENTITY,
   TEAM_SIZE_NOT_ALLOWED: HttpStatus.UNPROCESSABLE_ENTITY,
   NOTHING_TO_UNDO: HttpStatus.UNPROCESSABLE_ENTITY,
+  SPLIT_DISABLED: HttpStatus.UNPROCESSABLE_ENTITY,
+  SPLIT_NOT_READY: HttpStatus.UNPROCESSABLE_ENTITY,
   TOO_MANY_LOOKUPS: HttpStatus.TOO_MANY_REQUESTS,
 };
 
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
-  constructor(private readonly logger: LoggerService = new Logger(DomainExceptionFilter.name)) {}
+  constructor(
+    private readonly logger: LoggerService = new Logger(
+      DomainExceptionFilter.name,
+    ),
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const response = http.getResponse<Response>();
 
     if (exception instanceof VersionConflictError) {
-      response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json(exception.view);
+      response
+        .status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code])
+        .json(exception.view);
       return;
     }
 
     if (exception instanceof DomainError) {
-      response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json({ code: exception.code });
+      response
+        .status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code])
+        .json({ code: exception.code });
       return;
     }
 
     if (exception instanceof HttpException) {
       if (exception.getStatus() >= 500) {
-        this.logger.error({ err: exception, ...this.requestContext(http.getRequest<RequestWithId>()) }, "Http exception");
+        this.logger.error(
+          {
+            err: exception,
+            ...this.requestContext(http.getRequest<RequestWithId>()),
+          },
+          "Http exception",
+        );
       }
       response.status(exception.getStatus()).json(exception.getResponse());
       return;
     }
 
     const context = this.requestContext(http.getRequest<RequestWithId>());
-    const err = exception instanceof Error ? exception : new Error(String(exception));
+    const err =
+      exception instanceof Error ? exception : new Error(String(exception));
 
     if (isDatabaseUnavailableError(exception)) {
       this.logger.error({ err, ...context }, "Database unavailable");
-      this.respond(response, HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE");
+      this.respond(
+        response,
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "SERVICE_UNAVAILABLE",
+      );
       return;
     }
 
@@ -68,7 +97,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
     response.status(status).json({ code });
   }
 
-  private requestContext(request: RequestWithId): { method: string; url: string; requestId?: string | number } {
-    return { method: request.method, url: request.originalUrl, requestId: request.id };
+  private requestContext(request: RequestWithId): {
+    method: string;
+    url: string;
+    requestId?: string | number;
+  } {
+    return {
+      method: request.method,
+      url: request.originalUrl,
+      requestId: request.id,
+    };
   }
 }
