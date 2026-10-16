@@ -8,6 +8,7 @@ import {
   applyEvent,
   assertValidState,
   decide,
+  receivedLimitCents,
   replay,
   splitDueAtMs,
   type Command,
@@ -152,6 +153,13 @@ export class MatchesService {
       }
       const current = toSplitView(stored, activeEvents);
       const entry = splitEntryFromInput(input, current.perPersonCents);
+      const currentRow = current.players.find((player) => player.id === playerId);
+      if (
+        currentRow !== undefined &&
+        entry.receivedCents > receivedLimitCents(currentRow.receivedCents, current.pendingCents)
+      ) {
+        throw new DomainError("SPLIT_VALUE_EXCEEDS_TOTAL");
+      }
       const players = { ...(stored.split?.players ?? {}), [playerId]: entry };
       const updated = await this.repository.updateSplit({
         matchId: stored.id,

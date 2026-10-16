@@ -630,6 +630,26 @@ describe("Matches API (e2e)", () => {
       throw new Error("missing player");
     }
 
+    const aboveTotal = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 20001 });
+    expect(aboveTotal.status).toBe(422);
+    expect(aboveTotal.body).toEqual({ code: "SPLIT_VALUE_EXCEEDS_TOTAL" });
+
+    const atTotal = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 20000 });
+    expect(atTotal.status).toBe(200);
+    const atTotalSplit = atTotal.body as SplitView;
+    expect(atTotalSplit.players.find((player) => player.id === duda.id)).toMatchObject({
+      received: true,
+      receivedCents: 20000,
+      owedCents: 0,
+    });
+    expect(atTotalSplit.receivedCents).toBe(20000);
+    expect(atTotalSplit.pendingCount).toBe(3);
+    expect(atTotalSplit.pendingCents).toBe(0);
+
     const legacyPaid = await request(server)
       .put(`/api/matches/${created.code}/split/players/${duda.id}`)
       .send({ pays: true, paidCents: 500, received: false });

@@ -39,6 +39,10 @@ export function splitDueAtMs(startedAtMs: number, durationMinutes: number): numb
   return startedAtMs + (durationMinutes / 2) * 60_000;
 }
 
+export function receivedLimitCents(receivedCents: number, pendingCents: number): number {
+  return receivedCents + pendingCents;
+}
+
 function recordNames(event: Event, names: Map<string, string>): void {
   if (event.type === "MATCH_CREATED" || event.type === "MATCH_SET_UP") {
     for (const player of event.players) {

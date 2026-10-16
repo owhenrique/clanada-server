@@ -1903,6 +1903,108 @@ describe("MatchesService court split", () => {
     expect(view.pendingCents).toBe(5000);
   });
 
+  it("setSplitPlayer rejects a receipt above what is still missing", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const anaId = idOf(initial, "Ana");
+
+    await expect(
+      service.setSplitPlayer(created.code, anaId, { pays: true, receivedCents: 20001 }),
+    ).rejects.toMatchObject({ code: "SPLIT_VALUE_EXCEEDS_TOTAL" });
+
+    const stored = await repository.findByCode(created.code);
+    expect(stored?.split).toBeNull();
+  });
+
+  it("setSplitPlayer accepts a receipt exactly at the missing total", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const anaId = idOf(initial, "Ana");
+
+    const view = await service.setSplitPlayer(created.code, anaId, {
+      pays: true,
+      receivedCents: 20000,
+    });
+    const ana = view.players.find((player) => player.id === anaId);
+
+    expect(ana?.receivedCents).toBe(20000);
+    expect(ana?.received).toBe(true);
+    expect(view.receivedCents).toBe(20000);
+    expect(view.remainingCents).toBe(0);
+    expect(view.pendingCount).toBe(3);
+    expect(view.pendingCents).toBe(0);
+    expect(view.perPersonCents).toBe(0);
+  });
+
+  it("setSplitPlayer lets a legacy receipt above the total stay or shrink but never grow", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const anaId = idOf(initial, "Ana");
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [anaId]: { pays: true, received: true, receivedCents: 25000 },
+        },
+      },
+    });
+
+    const kept = await service.setSplitPlayer(created.code, anaId, {
+      pays: true,
+      receivedCents: 25000,
+    });
+    expect(kept.players.find((player) => player.id === anaId)?.receivedCents).toBe(25000);
+    expect(kept.remainingCents).toBe(0);
+
+    const reduced = await service.setSplitPlayer(created.code, anaId, {
+      pays: true,
+      receivedCents: 20000,
+    });
+    expect(reduced.players.find((player) => player.id === anaId)?.receivedCents).toBe(20000);
+    expect(reduced.remainingCents).toBe(0);
+
+    await expect(
+      service.setSplitPlayer(created.code, anaId, { pays: true, receivedCents: 26000 }),
+    ).rejects.toMatchObject({ code: "SPLIT_VALUE_EXCEEDS_TOTAL" });
+  });
+
+  it("setSplitPlayer accepts a pays=false receipt above the limit because it normalizes to zero", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const anaId = idOf(initial, "Ana");
+
+    const view = await service.setSplitPlayer(created.code, anaId, {
+      pays: false,
+      receivedCents: 999999,
+    });
+    const ana = view.players.find((player) => player.id === anaId);
+
+    expect(ana?.pays).toBe(false);
+    expect(ana?.receivedCents).toBe(0);
+    expect(view.receivedCents).toBe(0);
+    expect(view.perPersonCents).toBe(6667);
+  });
+
   it("setSplitPlayer with pays=false zeroes the receipt and redistributes the share", async () => {
     const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
     const { service, repository, logger } = makeService({ clock });

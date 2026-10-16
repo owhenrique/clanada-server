@@ -13,6 +13,7 @@ export type DomainErrorCode =
   | "NOTHING_TO_UNDO"
   | "SPLIT_DISABLED"
   | "SPLIT_NOT_READY"
+  | "SPLIT_VALUE_EXCEEDS_TOTAL"
   | "TOO_MANY_LOOKUPS";
 
 export class DomainError extends Error {

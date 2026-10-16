@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HistoryEvent } from "./game-history";
 import type { Event, MatchConfig, Player } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
-import { computeSplit, projectDepartedPlayers, splitDueAtMs } from "./split";
+import { computeSplit, projectDepartedPlayers, receivedLimitCents, splitDueAtMs } from "./split";
 import type { SplitEntry } from "./split";
 
 function payer(receivedCents = 0): SplitEntry {
@@ -125,6 +125,18 @@ describe("computeSplit", () => {
       pendingCount: 3,
       perPersonCents: 1,
     });
+  });
+});
+
+describe("receivedLimitCents", () => {
+  it("adds what the player already received to the pending total", () => {
+    expect(receivedLimitCents(12500, 12500)).toBe(25000);
+    expect(receivedLimitCents(0, 20000)).toBe(20000);
+  });
+
+  it("keeps only the current value when nothing is pending anymore", () => {
+    expect(receivedLimitCents(12500, 0)).toBe(12500);
+    expect(receivedLimitCents(25000, 0)).toBe(25000);
   });
 });
 

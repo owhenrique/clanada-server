@@ -53,6 +53,7 @@ describe("DomainExceptionFilter", () => {
     ["NOTHING_TO_UNDO", 422],
     ["SPLIT_DISABLED", 422],
     ["SPLIT_NOT_READY", 422],
+    ["SPLIT_VALUE_EXCEEDS_TOTAL", 422],
     ["TOO_MANY_LOOKUPS", 429],
   ];
 
