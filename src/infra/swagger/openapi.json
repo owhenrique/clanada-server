@@ -1281,6 +1281,11 @@
             "type": "boolean"
           },
           "paidCents": {
+            "type": "number",
+            "deprecated": true,
+            "description": "Legado; sempre 0"
+          },
+          "receivedCents": {
             "type": "number"
           },
           "received": {
@@ -1296,6 +1301,7 @@
           "left",
           "pays",
           "paidCents",
+          "receivedCents",
           "received",
           "owedCents"
         ]
@@ -1313,12 +1319,17 @@
             "type": "number"
           },
           "paidTotalCents": {
-            "type": "number"
+            "type": "number",
+            "deprecated": true,
+            "description": "Legado; sempre 0"
           },
           "remainingCents": {
             "type": "number"
           },
           "payerCount": {
+            "type": "number"
+          },
+          "pendingCount": {
             "type": "number"
           },
           "perPersonCents": {
@@ -1355,6 +1366,7 @@
           "paidTotalCents",
           "remainingCents",
           "payerCount",
+          "pendingCount",
           "perPersonCents",
           "receivedCount",
           "receivedCents",
@@ -1370,19 +1382,26 @@
           "pays": {
             "type": "boolean"
           },
-          "paidCents": {
+          "receivedCents": {
             "type": "number",
             "minimum": 0,
             "maximum": 1000000
           },
           "received": {
-            "type": "boolean"
+            "type": "boolean",
+            "deprecated": true,
+            "description": "Legado; quando true, usa a parte vigente como valor recebido"
+          },
+          "paidCents": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000,
+            "deprecated": true,
+            "description": "Legado; ignorado no cálculo"
           }
         },
         "required": [
-          "pays",
-          "paidCents",
-          "received"
+          "pays"
         ]
       },
       "SwapPlayersDto": {
