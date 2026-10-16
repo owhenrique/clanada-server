@@ -43,7 +43,7 @@ function decideEvent(state: MatchState | null, command: Parameters<typeof decide
   return result.event;
 }
 
-function createdFixture(): { event: Event; snapshot: MatchState } {
+export function createdFixture(): { event: Event; snapshot: MatchState } {
   const playerNames = ["A", "B", "C", "D", "E"];
   const ctx = ctxFor(["p0", "p1", "p2", "p3", "p4", "t0", "t1"]);
   const result = decide(null, { type: "create", playerNames, config }, ctx);
@@ -372,7 +372,10 @@ export function runMatchesRepositoryContract(
         snapshot,
       });
       const split: MatchSplitState = {
-        players: { p0: { pays: true, received: true, receivedCents: 1250 } },
+        players: {
+          p0: { pays: true, received: true, receivedCents: 1250 },
+          p1: { pays: false, received: false, receivedCents: 0 },
+        },
       };
 
       expect(created.split).toBeNull();
@@ -382,6 +385,8 @@ export function runMatchesRepositoryContract(
       });
 
       expect(stored.split).toEqual(split);
+      expect(stored.split?.players.p0?.receivedCents).toBe(1250);
+      expect(stored.split?.players.p1?.receivedCents).toBe(0);
       expect(stored.version).toBe(created.version);
       const found = await repository.findByCode("CEN11COD");
       expect(found?.split).toEqual(split);

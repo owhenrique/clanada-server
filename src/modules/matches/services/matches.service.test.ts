@@ -1619,6 +1619,68 @@ describe("MatchesService court split", () => {
     expect(duda?.owedCents).toBe(0);
   });
 
+  it("getSplit treats a legacy received flag without value as pending again", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [idOf(initial, "Ana")]: { pays: true, received: true, receivedCents: 0 },
+        },
+      },
+    });
+
+    const view = await service.getSplit(created.code);
+    const ana = view.players.find((player) => player.name === "Ana");
+
+    expect(view.receivedCount).toBe(0);
+    expect(view.receivedCents).toBe(0);
+    expect(view.pendingCount).toBe(4);
+    expect(view.perPersonCents).toBe(5000);
+    expect(ana?.received).toBe(false);
+    expect(ana?.owedCents).toBe(5000);
+  });
+
+  it("getSplit keeps a legacy out-of-division value out of the received count", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    await service.execute(created.code, created.version, { type: "start" });
+    await advanceToDueAt(clock, repository, created.code);
+    const initial = await service.getSplit(created.code);
+    const stored = await repository.findByCode(created.code);
+    if (stored === null) {
+      throw new Error("missing match");
+    }
+    await repository.updateSplit({
+      matchId: stored.id,
+      split: {
+        players: {
+          [idOf(initial, "Duda")]: { pays: false, received: false, receivedCents: 2000 },
+        },
+      },
+    });
+
+    const view = await service.getSplit(created.code);
+    const duda = view.players.find((player) => player.name === "Duda");
+
+    expect(view.receivedCount).toBe(0);
+    expect(view.payerCount).toBe(3);
+    expect(view.pendingCount).toBe(3);
+    expect(duda?.pays).toBe(false);
+    expect(duda?.received).toBe(false);
+    expect(duda?.owedCents).toBe(0);
+  });
+
   it("getSplit discounts the receipts and divides it among the remaining pending payers", async () => {
     const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
     const { service, repository } = makeService({ clock });

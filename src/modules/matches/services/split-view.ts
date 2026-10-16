@@ -114,18 +114,20 @@ export function toSplitView(stored: StoredMatch, activeEvents: readonly StoredEv
   ];
   const state = rows.map((row) => {
     const override = overrides[row.id];
+    const pays = override?.pays ?? true;
+    const receivedCents = override?.receivedCents ?? 0;
     return {
       id: row.id,
       name: row.name,
       left: row.left,
-      pays: override?.pays ?? true,
-      received: override?.received ?? false,
-      receivedCents: override?.receivedCents ?? 0,
+      pays,
+      received: pays && receivedCents > 0,
+      receivedCents,
     };
   });
 
   const totals = computeSplit({ totalCents, entries: state });
-  const receivedCount = state.filter((entry) => entry.receivedCents > 0).length;
+  const receivedCount = state.filter((entry) => entry.received).length;
 
   return {
     totalCents,
@@ -141,19 +143,16 @@ export function toSplitView(stored: StoredMatch, activeEvents: readonly StoredEv
     pendingCents: totals.remainingCents,
     startedAt: startedAt === null ? null : startedAt.toISOString(),
     dueAt: dueAtMs === null ? null : new Date(dueAtMs).toISOString(),
-    players: state.map((entry) => {
-      const received = entry.receivedCents > 0;
-      return {
-        id: entry.id,
-        name: entry.name,
-        left: entry.left,
-        pays: entry.pays,
-        paidCents: 0,
-        receivedCents: entry.receivedCents,
-        received,
-        owedCents: entry.pays && !received ? totals.perPersonCents : 0,
-      };
-    }),
+    players: state.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      left: entry.left,
+      pays: entry.pays,
+      paidCents: 0,
+      receivedCents: entry.receivedCents,
+      received: entry.received,
+      owedCents: entry.pays && !entry.received ? totals.perPersonCents : 0,
+    })),
   };
 }
 
