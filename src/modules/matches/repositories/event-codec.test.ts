@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent } from "../../../domain/match";
+import { DEFAULT_SPLIT_CONFIG, applyEvent } from "../../../domain/match";
 import { decodeEvent } from "./event-codec";
 
 const legacyPayload = {
@@ -13,24 +13,37 @@ describe("event codec", () => {
     const event = decodeEvent("MATCH_CREATED", legacyPayload);
     const state = applyEvent(null, event);
     expect(state.config.ruleToggles).toEqual({ arrivalPriority: false });
+    expect(state.config.split).toEqual(DEFAULT_SPLIT_CONFIG);
   });
 
   it("F4 CEN-9: keeps the persisted rule toggles when present", () => {
     const event = decodeEvent("MATCH_CREATED", {
       ...legacyPayload,
-      config: { ...legacyPayload.config, ruleToggles: { arrivalPriority: true } },
+      config: {
+        ...legacyPayload.config,
+        ruleToggles: { arrivalPriority: true },
+      },
     });
-    expect(applyEvent(null, event).config.ruleToggles).toEqual({ arrivalPriority: true });
+    expect(applyEvent(null, event).config.ruleToggles).toEqual({
+      arrivalPriority: true,
+    });
   });
 
   it("F8 CEN-9: round-trips a persisted MATCH_SET_UP", () => {
     const event = decodeEvent("MATCH_SET_UP", {
       ...legacyPayload,
-      config: { ...legacyPayload.config, ruleToggles: { arrivalPriority: true } },
+      config: {
+        ...legacyPayload.config,
+        ruleToggles: { arrivalPriority: true },
+      },
     });
     expect(event).toEqual({
       type: "MATCH_SET_UP",
-      config: { ...legacyPayload.config, ruleToggles: { arrivalPriority: true } },
+      config: {
+        ...legacyPayload.config,
+        ruleToggles: { arrivalPriority: true },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       players: legacyPayload.players,
       teamIds: [],
     });

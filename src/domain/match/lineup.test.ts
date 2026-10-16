@@ -10,13 +10,31 @@ import {
 } from "./lineup";
 import { shuffle } from "./support";
 import { swapPlayers } from "./team-edits";
-import type { Player, CommandContext, CreateMatchConfig, Event, MatchConfig, MatchState } from "./model";
+import type {
+  Player,
+  CommandContext,
+  CreateMatchConfig,
+  Event,
+  MatchConfig,
+  MatchState,
+} from "./model";
+import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { DomainError } from "../../shared/errors/domain-error";
 import { applyEvent, replay } from "./engine";
 
 describe("CEN-1: formInitialState", () => {
   it("forms as many full teams as possible", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams).toHaveLength(3);
     expect(state.teams[0]?.players.map((p) => p.id)).toEqual([
       "p0",
@@ -35,18 +53,48 @@ describe("CEN-1: formInitialState", () => {
   });
 
   it("puts leftover players in the queue, in order", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams).toHaveLength(2);
     expect(state.queue.map((p) => p.id)).toEqual(["p10", "p11"]);
   });
 
   it("has no queue when the count is a multiple of the team size", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.queue).toEqual([]);
   });
 
   it("assigns colors to teams in order", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams.map((t) => t.color)).toEqual([
       "verde",
       "vermelho",
@@ -55,7 +103,17 @@ describe("CEN-1: formInitialState", () => {
   });
 
   it("leaves teams without color when there are fewer bibs than teams", () => {
-    const state = formInitialState(makePlayers(20), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(20),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams).toHaveLength(4);
     expect(state.teams.map((t) => t.color)).toEqual([
       "verde",
@@ -66,18 +124,48 @@ describe("CEN-1: formInitialState", () => {
   });
 
   it("uses only as many colors as there are teams", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul", "amarelo"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams.map((t) => t.color)).toEqual(["verde", "vermelho"]);
   });
 
   it("assigns team ids from the factory and starts streaks at zero", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
     expect(state.teams.every((t) => t.gameStreak === 0)).toBe(true);
   });
 
   it("keeps the config and starts in DRAFT", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(state.config.teamSize).toBe(5);
     expect(state.config.colors).toEqual(["verde", "vermelho"]);
     expect(state.status).toBe("DRAFT");
@@ -86,15 +174,45 @@ describe("CEN-1: formInitialState", () => {
 
 describe("CEN-1: flattenPlayers", () => {
   it("round-trips through formInitialState: teams in order, then the queue", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const flat = flattenPlayers(state);
     expect(flat.map((p) => p.id)).toEqual(makePlayers(12).map((p) => p.id));
-    const rebuilt = formInitialState(flat, { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const rebuilt = formInitialState(
+      flat,
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     expect(rebuilt).toEqual(state);
   });
 
   it("reflects a swap applied before flattening", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const swapped = swapPlayers(state, "p2", "p11");
     const flat = flattenPlayers(swapped);
     expect(flat.map((p) => p.id)).toEqual([
@@ -115,7 +233,10 @@ describe("CEN-1: flattenPlayers", () => {
 });
 
 function players(count: number): Player[] {
-  return Array.from({ length: count }, (_, index) => ({ id: `p${index + 1}`, name: `P${index + 1}` }));
+  return Array.from({ length: count }, (_, index) => ({
+    id: `p${index + 1}`,
+    name: `P${index + 1}`,
+  }));
 }
 
 function ids(list: Player[]): string[] {
@@ -144,7 +265,11 @@ describe("orderPlayers", () => {
   });
 
   it("F4 CEN-5: with nobody seated, returns the arrival order", () => {
-    expect(ids(orderPlayers(players(3), 0, 5, on, () => 0))).toEqual(["p1", "p2", "p3"]);
+    expect(ids(orderPlayers(players(3), 0, 5, on, () => 0))).toEqual([
+      "p1",
+      "p2",
+      "p3",
+    ]);
   });
 
   it("F6 CEN-1: shuffles only the first 2N seated players and keeps the next teams in arrival order", () => {
@@ -159,6 +284,7 @@ const config: MatchConfig = {
   colors: ["verde", "vermelho"],
   gameMinutes: 10,
   ruleToggles: { arrivalPriority: false },
+  split: DEFAULT_SPLIT_CONFIG,
 };
 
 function ctxFor(playerIds: string[], teamIds: string[]): CommandContext {
@@ -185,7 +311,11 @@ describe("CEN-1: decideCreate", () => {
       Array.from({ length: 12 }, (_, i) => `p${i}`),
       ["t0", "t1"],
     );
-    const result = decideCreate(null, { type: "create", playerNames, config }, ctx);
+    const result = decideCreate(
+      null,
+      { type: "create", playerNames, config },
+      ctx,
+    );
     if (!("event" in result)) {
       throw new Error("expected an event");
     }
@@ -222,6 +352,42 @@ describe("CEN-1: decideCreate", () => {
   });
 });
 
+describe("split config on create", () => {
+  it("resolves and records the split config in the match snapshot", () => {
+    const result = decideCreate(
+      null,
+      {
+        type: "create",
+        playerNames: ["Ana", "Bia"],
+        config: { ...config, split: { enabled: true, durationMinutes: 90 } },
+      },
+      ctxFor(["p0", "p1"], []),
+    );
+    if (!("event" in result) || result.event.type !== "MATCH_CREATED") {
+      throw new Error("expected MATCH_CREATED");
+    }
+    const expected = {
+      enabled: true,
+      hourlyRateCents: 10000,
+      durationMinutes: 90,
+    };
+    expect(result.event.config.split).toEqual(expected);
+    expect(applyEvent(null, result.event).config.split).toEqual(expected);
+  });
+
+  it("keeps the split disabled when the create config omits it", () => {
+    const result = decideCreate(
+      null,
+      { type: "create", playerNames: ["Ana"], config },
+      ctxFor(["p0"], []),
+    );
+    if (!("event" in result) || result.event.type !== "MATCH_CREATED") {
+      throw new Error("expected MATCH_CREATED");
+    }
+    expect(result.event.config.split).toEqual(DEFAULT_SPLIT_CONFIG);
+  });
+});
+
 function names(count: number): string[] {
   return Array.from({ length: count }, (_, i) => `p${i + 1}`);
 }
@@ -246,7 +412,11 @@ function createdState(
     },
     timerRunning: false,
   };
-  const result = decideCreate(null, { type: "create", playerNames, config: createConfig }, ctx);
+  const result = decideCreate(
+    null,
+    { type: "create", playerNames, config: createConfig },
+    ctx,
+  );
   if (!("event" in result)) {
     throw new Error("expected an event");
   }
@@ -254,15 +424,27 @@ function createdState(
 }
 
 function teamNames(state: MatchState): string[] {
-  return state.teams.flatMap((team) => team.players.map((player) => player.name));
+  return state.teams.flatMap((team) =>
+    team.players.map((player) => player.name),
+  );
 }
 
 function queueNames(state: MatchState): string[] {
   return state.queue.map((player) => player.name);
 }
 
-const arrivalOn = { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: true } };
-const arrivalOff = { ...arrivalOn, ruleToggles: { arrivalPriority: false } };
+const arrivalOn = {
+  teamSize: 5,
+  colors: ["verde", "vermelho"],
+  gameMinutes: 10,
+  ruleToggles: { arrivalPriority: true },
+  split: DEFAULT_SPLIT_CONFIG,
+};
+const arrivalOff = {
+  ...arrivalOn,
+  ruleToggles: { arrivalPriority: false },
+  split: DEFAULT_SPLIT_CONFIG,
+};
 
 describe("arrival priority on create", () => {
   it("F4 CEN-1: keeps the first T×N names on the teams and the rest in the queue", () => {
@@ -272,14 +454,19 @@ describe("arrival priority on create", () => {
   });
 
   it("F4 CEN-2: keeps the queue in arrival order", () => {
-    const state = createdState(names(8), { ...arrivalOn, teamSize: 3 }, () => 0);
+    const state = createdState(
+      names(8),
+      { ...arrivalOn, teamSize: 3 },
+      () => 0,
+    );
     expect(new Set(teamNames(state))).toEqual(new Set(names(6)));
     expect(queueNames(state)).toEqual(["p7", "p8"]);
   });
 
   it("F4 CEN-3: mixes the players who arrived together", () => {
     const state = createdState(names(10), arrivalOn, () => 0);
-    const firstTeam = state.teams[0]?.players.map((player) => player.name) ?? [];
+    const firstTeam =
+      state.teams[0]?.players.map((player) => player.name) ?? [];
     expect(new Set(firstTeam)).not.toEqual(new Set(names(5)));
   });
 
@@ -315,7 +502,9 @@ function teamNamesAt(state: MatchState, index: number): string[] {
 describe("arrival priority puts the first arrivals on the field", () => {
   it("F6 CEN-1: with three teams, the first 2N play first and the next N form the third team in order", () => {
     const state = createdState(names(16), arrivalOn, () => 0.3);
-    expect(new Set([...teamNamesAt(state, 0), ...teamNamesAt(state, 1)])).toEqual(new Set(names(10)));
+    expect(
+      new Set([...teamNamesAt(state, 0), ...teamNamesAt(state, 1)]),
+    ).toEqual(new Set(names(10)));
     expect(teamNamesAt(state, 2)).toEqual(["p11", "p12", "p13", "p14", "p15"]);
     expect(queueNames(state)).toEqual(["p16"]);
   });
@@ -334,14 +523,22 @@ describe("arrival priority puts the first arrivals on the field", () => {
   it("F6 CEN-5: shuffles everyone when the rule is off", () => {
     const random = (): number => 0;
     const state = createdState(names(16), arrivalOff, random);
-    expect([...teamNames(state), ...queueNames(state)]).toEqual(shuffle(names(16), random));
+    expect([...teamNames(state), ...queueNames(state)]).toEqual(
+      shuffle(names(16), random),
+    );
   });
 });
 
 function draftState(): MatchState {
   return formInitialState(
     makePlayers(12),
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+    {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     (i) => `t${i}`,
   );
 }
@@ -365,7 +562,11 @@ function ctxWithIds(teamIds: string[]): CommandContext {
 describe("CEN-4: decideReshuffle", () => {
   it("reorders the players and records fresh team ids", () => {
     const state = draftState();
-    const result = decideReshuffle(state, { type: "reshuffle" }, ctxWithIds(["t2", "t3"]));
+    const result = decideReshuffle(
+      state,
+      { type: "reshuffle" },
+      ctxWithIds(["t2", "t3"]),
+    );
     if (!("event" in result) || result.event.type !== "RESHUFFLED") {
       throw new Error("expected a RESHUFFLED event");
     }
@@ -384,7 +585,13 @@ function arrivalDraft(arrivalPriority: boolean): MatchState {
   }));
   return formInitialState(
     players,
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority } },
+    {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     (i) => `t${i}`,
   );
 }
@@ -409,7 +616,9 @@ describe("arrival priority on reshuffle", () => {
     const state = reshuffled(arrivalDraft(true), () => 0);
     expect(state.queue.map((player) => player.id)).toEqual(["p11"]);
     expect(new Set(teamIds(state))).toEqual(new Set(firstTen));
-    const firstTeam = new Set(state.teams[0]?.players.map((player) => player.id));
+    const firstTeam = new Set(
+      state.teams[0]?.players.map((player) => player.id),
+    );
     expect(firstTeam).not.toEqual(new Set(["p1", "p2", "p3", "p4", "p5"]));
   });
 
@@ -424,8 +633,13 @@ describe("arrival priority on reshuffle", () => {
     const draft = arrivalDraft(false);
     const random = (): number => 0;
     const state = reshuffled(draft, random);
-    const expected = shuffle(flattenPlayers(draft), random).map((player) => player.id);
-    expect([...teamIds(state), ...state.queue.map((player) => player.id)]).toEqual(expected);
+    const expected = shuffle(flattenPlayers(draft), random).map(
+      (player) => player.id,
+    );
+    expect([
+      ...teamIds(state),
+      ...state.queue.map((player) => player.id),
+    ]).toEqual(expected);
     expect(state.queue.map((player) => player.id)).not.toEqual(["p11"]);
   });
 });
@@ -437,7 +651,13 @@ function threeTeamDraft(arrivalPriority: boolean): MatchState {
   }));
   return formInitialState(
     players,
-    { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority } },
+    {
+      teamSize: 5,
+      colors: ["verde", "vermelho"],
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     (i) => `t${i}`,
   );
 }
@@ -458,8 +678,12 @@ function playerIdsAt(state: MatchState, index: number): string[] {
 describe("arrival priority reshuffles only the teams on the field", () => {
   it("F6 CEN-4: keeps the third team and the queue untouched", () => {
     const state = reshuffledThree(threeTeamDraft(true), () => 0);
-    expect(new Set([...playerIdsAt(state, 0), ...playerIdsAt(state, 1)])).toEqual(new Set(firstTen));
-    expect(new Set(playerIdsAt(state, 0))).not.toEqual(new Set(["p1", "p2", "p3", "p4", "p5"]));
+    expect(
+      new Set([...playerIdsAt(state, 0), ...playerIdsAt(state, 1)]),
+    ).toEqual(new Set(firstTen));
+    expect(new Set(playerIdsAt(state, 0))).not.toEqual(
+      new Set(["p1", "p2", "p3", "p4", "p5"]),
+    );
     expect(playerIdsAt(state, 2)).toEqual(["p11", "p12", "p13", "p14", "p15"]);
     expect(state.queue.map((player) => player.id)).toEqual(["p16"]);
   });
@@ -468,8 +692,13 @@ describe("arrival priority reshuffles only the teams on the field", () => {
     const draft = threeTeamDraft(false);
     const random = (): number => 0;
     const state = reshuffledThree(draft, random);
-    const expected = shuffle(flattenPlayers(draft), random).map((player) => player.id);
-    expect([...teamIds(state), ...state.queue.map((player) => player.id)]).toEqual(expected);
+    const expected = shuffle(flattenPlayers(draft), random).map(
+      (player) => player.id,
+    );
+    expect([
+      ...teamIds(state),
+      ...state.queue.map((player) => player.id),
+    ]).toEqual(expected);
   });
 });
 
@@ -497,14 +726,23 @@ function eventOf(result: ReturnType<typeof decideSetup>): Event {
 }
 
 describe("F8: decideSetup", () => {
-  const setupIds = [...names(10).map((name) => `s-${name}`), "s-t0", "s-t1", "s-t2"];
+  const setupIds = [
+    ...names(10).map((name) => `s-${name}`),
+    "s-t0",
+    "s-t1",
+    "s-t2",
+  ];
 
   it("CEN-5: reconfigures a draft with a new team size and players, staying in DRAFT", () => {
     const draft = createdState(names(3), arrivalOn, () => 0);
     const event = eventOf(
       decideSetup(
         draft,
-        { type: "setup", playerNames: ["A", "B", "C", "D", "E", "F"], config: { ...arrivalOn, teamSize: 3 } },
+        {
+          type: "setup",
+          playerNames: ["A", "B", "C", "D", "E", "F"],
+          config: { ...arrivalOn, teamSize: 3 },
+        },
         sequenceCtx(setupIds, () => 0),
       ),
     );
@@ -523,13 +761,27 @@ describe("F8: decideSetup", () => {
     if (first === undefined || second === undefined) {
       throw new Error("fixture needs two teams");
     }
-    const swapped = swapPlayers(draft, first.players[0]?.id ?? "", second.players[0]?.id ?? "");
+    const swapped = swapPlayers(
+      draft,
+      first.players[0]?.id ?? "",
+      second.players[0]?.id ?? "",
+    );
     const random = (): number => 0.42;
     const setupState = applyEvent(
       swapped,
-      eventOf(decideSetup(swapped, { type: "setup", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, random))),
+      eventOf(
+        decideSetup(
+          swapped,
+          { type: "setup", playerNames: names(10), config: arrivalOff },
+          sequenceCtx(setupIds, random),
+        ),
+      ),
     );
-    const createResult = decideCreate(null, { type: "create", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, random));
+    const createResult = decideCreate(
+      null,
+      { type: "create", playerNames: names(10), config: arrivalOff },
+      sequenceCtx(setupIds, random),
+    );
     if (!("event" in createResult)) {
       throw new Error("expected an event");
     }
@@ -537,7 +789,11 @@ describe("F8: decideSetup", () => {
   });
 
   it("CEN-9: replay ends in the lineup formed by MATCH_SET_UP", () => {
-    const createResult = decideCreate(null, { type: "create", playerNames: names(10), config: arrivalOff }, sequenceCtx(setupIds, () => 0.3));
+    const createResult = decideCreate(
+      null,
+      { type: "create", playerNames: names(10), config: arrivalOff },
+      sequenceCtx(setupIds, () => 0.3),
+    );
     if (!("event" in createResult)) {
       throw new Error("expected an event");
     }
@@ -550,9 +806,21 @@ describe("F8: decideSetup", () => {
     };
     const swapped = applyEvent(created, swapEvent);
     const setupEvent = eventOf(
-      decideSetup(swapped, { type: "setup", playerNames: names(6), config: { ...arrivalOff, teamSize: 3 } }, sequenceCtx(setupIds, () => 0.7)),
+      decideSetup(
+        swapped,
+        {
+          type: "setup",
+          playerNames: names(6),
+          config: { ...arrivalOff, teamSize: 3 },
+        },
+        sequenceCtx(setupIds, () => 0.7),
+      ),
     );
-    expect(replay([createResult.event, swapEvent, setupEvent])).toEqual(applyEvent(swapped, setupEvent));
-    expect(replay([createResult.event, swapEvent, setupEvent]).config.teamSize).toBe(3);
+    expect(replay([createResult.event, swapEvent, setupEvent])).toEqual(
+      applyEvent(swapped, setupEvent),
+    );
+    expect(
+      replay([createResult.event, swapEvent, setupEvent]).config.teamSize,
+    ).toBe(3);
   });
 });

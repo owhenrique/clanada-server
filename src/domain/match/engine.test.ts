@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { makePlayers } from "./test-fixtures";
 import { DomainError } from "../../shared/errors/domain-error";
-import type { CommandContext, MatchState, Event, Player, MatchConfig } from "./model";
+import type {
+  CommandContext,
+  MatchState,
+  Event,
+  Player,
+  MatchConfig,
+} from "./model";
+import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { decide, decideStart, decideEnd, applyEvent, replay } from "./engine";
 import { formInitialState } from "./lineup";
 
@@ -9,7 +16,13 @@ function stateWithStatus(status: MatchState["status"]): MatchState {
   return {
     ...formInitialState(
       makePlayers(10),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       (i) => `t${i}`,
     ),
     status,
@@ -17,7 +30,11 @@ function stateWithStatus(status: MatchState["status"]): MatchState {
 }
 
 describe("CEN-3/CEN-19: decide — status permitido", () => {
-  const ctx: CommandContext = { random: () => 0.9, nextId: () => "n0", timerRunning: false };
+  const ctx: CommandContext = {
+    random: () => 0.9,
+    nextId: () => "n0",
+    timerRunning: false,
+  };
 
   it("CEN-3: rejects reshuffle outside DRAFT", () => {
     const state = stateWithStatus("ACTIVE");
@@ -45,7 +62,13 @@ describe("CEN-3/CEN-19: decide — status permitido", () => {
       {
         type: "create",
         playerNames: ["A", "B"],
-        config: { teamSize: 1, colors: ["verde"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+        config: {
+          teamSize: 1,
+          colors: ["verde"],
+          gameMinutes: 10,
+          ruleToggles: { arrivalPriority: false },
+          split: DEFAULT_SPLIT_CONFIG,
+        },
       },
       ctx,
     );
@@ -59,13 +82,23 @@ describe("CEN-3/CEN-19: decide — status permitido", () => {
   });
 });
 
-const ctx: CommandContext = { random: () => 0, nextId: () => "unused", timerRunning: false };
+const ctx: CommandContext = {
+  random: () => 0,
+  nextId: () => "unused",
+  timerRunning: false,
+};
 
 describe("CEN-7/CEN-8: decideStart", () => {
   it("CEN-7: rejects starting with fewer than 2 teams", () => {
     const state = formInitialState(
       makePlayers(8),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       (i) => `t${i}`,
     );
     expect(state.teams).toHaveLength(1);
@@ -80,7 +113,13 @@ describe("CEN-7/CEN-8: decideStart", () => {
   it("CEN-8: produces MATCH_STARTED with 2 or more teams", () => {
     const state = formInitialState(
       makePlayers(10),
-      { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       (i) => `t${i}`,
     );
     const result = decideStart(state, { type: "start" }, ctx);
@@ -93,7 +132,13 @@ describe("CEN-18: decideEnd", () => {
     const state = {
       ...formInitialState(
         makePlayers(10),
-        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+        {
+          teamSize: 5,
+          colors: ["verde", "vermelho"],
+          gameMinutes: 10,
+          ruleToggles: { arrivalPriority: false },
+          split: DEFAULT_SPLIT_CONFIG,
+        },
         (i) => `t${i}`,
       ),
       status: "ACTIVE" as const,
@@ -106,7 +151,9 @@ describe("CEN-18: decideEnd", () => {
 const config: MatchConfig = {
   teamSize: 5,
   colors: ["verde", "vermelho", "azul"],
-  gameMinutes: 10, ruleToggles: { arrivalPriority: false }
+  gameMinutes: 10,
+  ruleToggles: { arrivalPriority: false },
+  split: DEFAULT_SPLIT_CONFIG,
 };
 
 function created(players: Player[], teamIds: string[]): Event {
@@ -130,7 +177,11 @@ describe("apply-event: um teste por evento", () => {
     const order = [...state.teams.flatMap((t) => t.players), ...state.queue]
       .map((p) => p.id)
       .reverse();
-    const next = applyEvent(state, { type: "RESHUFFLED", order, teamIds: ["t2", "t3"] });
+    const next = applyEvent(state, {
+      type: "RESHUFFLED",
+      order,
+      teamIds: ["t2", "t3"],
+    });
     expect(next.teams.map((t) => t.id)).toEqual(["t2", "t3"]);
     expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
       "p11",
@@ -256,8 +307,18 @@ describe("apply-event: um teste por evento", () => {
       newTeamIds: [],
     });
     expect(next.config.teamSize).toBe(4);
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4"]);
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8"]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+    ]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
+      "p5",
+      "p6",
+      "p7",
+      "p8",
+    ]);
     expect(next.queue.map((p) => p.id)).toEqual(["p10", "p11", "p9"]);
   });
 
@@ -270,7 +331,12 @@ describe("apply-event: um teste por evento", () => {
     });
     expect(next.config.teamSize).toBe(4);
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "tNovo"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p10", "p11", "p4", "p9"]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
+      "p10",
+      "p11",
+      "p4",
+      "p9",
+    ]);
     expect(next.queue).toEqual([]);
   });
 
@@ -283,20 +349,46 @@ describe("apply-event: um teste por evento", () => {
 
 describe("CEN-27: replay is deterministic", () => {
   it("throws when the first event is not MATCH_CREATED", () => {
-    expect(() =>
-      replay([{ type: "MATCH_STARTED" }]),
-    ).toThrow(/MATCH_CREATED/);
+    expect(() => replay([{ type: "MATCH_STARTED" }])).toThrow(/MATCH_CREATED/);
   });
 
   it("running the same 8-event history twice yields the same state", () => {
     const events: Event[] = [
-      { type: "MATCH_CREATED", config, players: makePlayers(20), teamIds: ["t0", "t1", "t2", "t3"] },
-      { type: "RESHUFFLED", order: makePlayers(20).map((p) => p.id), teamIds: ["t4", "t5", "t6", "t7"] },
+      {
+        type: "MATCH_CREATED",
+        config,
+        players: makePlayers(20),
+        teamIds: ["t0", "t1", "t2", "t3"],
+      },
+      {
+        type: "RESHUFFLED",
+        order: makePlayers(20).map((p) => p.id),
+        teamIds: ["t4", "t5", "t6", "t7"],
+      },
       { type: "MATCH_STARTED" },
-      { type: "GAME_WON", loserTeamId: "t5", decidedBy: "match", newTeamIds: [] },
-      { type: "GAME_WON", loserTeamId: "t6", decidedBy: "match", newTeamIds: [] },
-      { type: "GAME_WON", loserTeamId: "t7", decidedBy: "match", newTeamIds: [] },
-      { type: "PLAYER_JOINED", player: { id: "pNovo", name: "Novo" }, newTeamIds: [] },
+      {
+        type: "GAME_WON",
+        loserTeamId: "t5",
+        decidedBy: "match",
+        newTeamIds: [],
+      },
+      {
+        type: "GAME_WON",
+        loserTeamId: "t6",
+        decidedBy: "match",
+        newTeamIds: [],
+      },
+      {
+        type: "GAME_WON",
+        loserTeamId: "t7",
+        decidedBy: "match",
+        newTeamIds: [],
+      },
+      {
+        type: "PLAYER_JOINED",
+        player: { id: "pNovo", name: "Novo" },
+        newTeamIds: [],
+      },
       { type: "PLAYERS_SWAPPED", playerAId: "p0", playerBId: "pNovo" },
     ];
 

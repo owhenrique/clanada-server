@@ -1,22 +1,37 @@
 import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../../shared/errors/domain-error";
 import { PrismaService } from "../../../infra/prisma/prisma.service";
-import { Prisma, type Match as MatchRow } from "../../../generated/prisma/client";
-import { UNDOABLE_EVENTS, decodeRuleToggles, type Event, type MatchState } from "../../../domain/match";
+import {
+  Prisma,
+  type Match as MatchRow,
+} from "../../../generated/prisma/client";
+import {
+  UNDOABLE_EVENTS,
+  decodeRuleToggles,
+  decodeSplitConfig,
+  type Event,
+  type MatchState,
+} from "../../../domain/match";
 import { decodeEvent, encodeEventPayload } from "./event-codec";
 import {
   MatchCodeCollisionError,
   MatchesRepository,
   type AppendInput,
   type CreateMatchInput,
+  type MatchSplitPlayerState,
+  type MatchSplitState,
   type RevokeLastInput,
   type StoredEvent,
   type StoredMatch,
+  type UpdateSplitInput,
   type UpdateTimerInput,
 } from "./matches.repository";
 
 function isUniqueConstraintViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
 }
 
 function toInputJson(value: unknown): Prisma.InputJsonValue {
@@ -40,9 +55,50 @@ async function applyVersionGuardedUpdate(
   }
 }
 
+function readSplitState(value: Prisma.JsonValue): MatchSplitState | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const players = (value as Record<string, unknown>).players;
+  if (
+    typeof players !== "object" ||
+    players === null ||
+    Array.isArray(players)
+  ) {
+    return null;
+  }
+  const parsed: Record<string, MatchSplitPlayerState> = {};
+  for (const [playerId, raw] of Object.entries(players)) {
+    if (typeof raw !== "object" || raw === null) {
+      return null;
+    }
+    const entry = raw as Record<string, unknown>;
+    if (
+      typeof entry.pays !== "boolean" ||
+      typeof entry.paidCents !== "number" ||
+      typeof entry.received !== "boolean"
+    ) {
+      return null;
+    }
+    parsed[playerId] = {
+      pays: entry.pays,
+      paidCents: entry.paidCents,
+      received: entry.received,
+    };
+  }
+  return { players: parsed };
+}
+
 function toSnapshot(value: Prisma.JsonValue): MatchState {
   const state = value as unknown as MatchState;
-  return { ...state, config: { ...state.config, ruleToggles: decodeRuleToggles(state.config.ruleToggles) } };
+  return {
+    ...state,
+    config: {
+      ...state.config,
+      ruleToggles: decodeRuleToggles(state.config.ruleToggles),
+      split: decodeSplitConfig(state.config.split),
+    },
+  };
 }
 
 function toStoredMatch(row: MatchRow): StoredMatch {
@@ -52,6 +108,7 @@ function toStoredMatch(row: MatchRow): StoredMatch {
     status: row.status,
     version: row.version,
     snapshot: toSnapshot(row.snapshot),
+    split: readSplitState(row.split),
     timer: { startedAt: row.timerStartedAt, elapsedMs: row.timerElapsedMs },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -106,24 +163,30 @@ export class PrismaMatchesRepository extends MatchesRepository {
       where: { matchId, revokedAt: null },
       orderBy: { seq: "asc" },
     });
-    return rows.map(
-      (row): StoredEvent => ({
-        seq: row.seq,
-        event: decodeEvent(row.type, row.payload),
-        createdAt: row.createdAt,
-      }),
-    );
+    return rows.map((row): StoredEvent => ({
+      seq: row.seq,
+      event: decodeEvent(row.type, row.payload),
+      createdAt: row.createdAt,
+    }));
   }
 
   async append(input: AppendInput): Promise<StoredMatch> {
     return this.prisma.$transaction(async (tx) => {
-      await applyVersionGuardedUpdate(tx, input.matchId, input.expectedVersion, {
-        snapshot: toInputJson(input.snapshot),
-        status: input.snapshot.status,
-        ...(input.timer !== undefined
-          ? { timerStartedAt: input.timer.startedAt, timerElapsedMs: input.timer.elapsedMs }
-          : {}),
-      });
+      await applyVersionGuardedUpdate(
+        tx,
+        input.matchId,
+        input.expectedVersion,
+        {
+          snapshot: toInputJson(input.snapshot),
+          status: input.snapshot.status,
+          ...(input.timer !== undefined
+            ? {
+                timerStartedAt: input.timer.startedAt,
+                timerElapsedMs: input.timer.elapsedMs,
+              }
+            : {}),
+        },
+      );
       const last = await tx.matchEvent.findFirst({
         where: { matchId: input.matchId },
         orderBy: { seq: "desc" },
@@ -140,14 +203,18 @@ export class PrismaMatchesRepository extends MatchesRepository {
           },
         });
       }
-      const match = await tx.match.findUniqueOrThrow({ where: { id: input.matchId } });
+      const match = await tx.match.findUniqueOrThrow({
+        where: { id: input.matchId },
+      });
       return toStoredMatch(match);
     });
   }
 
   async revokeLast(input: RevokeLastInput): Promise<StoredMatch> {
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.match.findUnique({ where: { id: input.matchId } });
+      const current = await tx.match.findUnique({
+        where: { id: input.matchId },
+      });
       if (current === null || current.version !== input.expectedVersion) {
         throw new DomainError("VERSION_CONFLICT");
       }
@@ -155,26 +222,53 @@ export class PrismaMatchesRepository extends MatchesRepository {
         where: { matchId: input.matchId, revokedAt: null },
         orderBy: { seq: "desc" },
       });
-      const target = activeEvents.find((event) => UNDOABLE_EVENTS.has(event.type as Event["type"]));
+      const target = activeEvents.find((event) =>
+        UNDOABLE_EVENTS.has(event.type as Event["type"]),
+      );
       if (target === undefined) {
         throw new DomainError("NOTHING_TO_UNDO");
       }
-      await applyVersionGuardedUpdate(tx, input.matchId, input.expectedVersion, {
-        snapshot: toInputJson(input.snapshot),
-        status: input.snapshot.status,
+      await applyVersionGuardedUpdate(
+        tx,
+        input.matchId,
+        input.expectedVersion,
+        {
+          snapshot: toInputJson(input.snapshot),
+          status: input.snapshot.status,
+        },
+      );
+      await tx.matchEvent.update({
+        where: { matchId_seq: { matchId: target.matchId, seq: target.seq } },
+        data: { revokedAt: new Date() },
       });
-      await tx.matchEvent.update({ where: { matchId_seq: { matchId: target.matchId, seq: target.seq } }, data: { revokedAt: new Date() } });
-      const match = await tx.match.findUniqueOrThrow({ where: { id: input.matchId } });
+      const match = await tx.match.findUniqueOrThrow({
+        where: { id: input.matchId },
+      });
       return toStoredMatch(match);
     });
   }
 
   async updateTimer(input: UpdateTimerInput): Promise<StoredMatch> {
-    await applyVersionGuardedUpdate(this.prisma, input.matchId, input.expectedVersion, {
-      timerStartedAt: input.timer.startedAt,
-      timerElapsedMs: input.timer.elapsedMs,
+    await applyVersionGuardedUpdate(
+      this.prisma,
+      input.matchId,
+      input.expectedVersion,
+      {
+        timerStartedAt: input.timer.startedAt,
+        timerElapsedMs: input.timer.elapsedMs,
+      },
+    );
+    const match = await this.prisma.match.findUniqueOrThrow({
+      where: { id: input.matchId },
     });
-    const match = await this.prisma.match.findUniqueOrThrow({ where: { id: input.matchId } });
+    return toStoredMatch(match);
+  }
+
+  async updateSplit(input: UpdateSplitInput): Promise<StoredMatch> {
+    const match = await this.prisma.match.update({
+      where: { id: input.matchId },
+      data: { split: toInputJson(input.split) },
+    });
     return toStoredMatch(match);
   }
 }

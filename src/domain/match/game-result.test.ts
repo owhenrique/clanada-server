@@ -9,6 +9,7 @@ import {
 } from "./game-result";
 import { formInitialState } from "./lineup";
 import type { Player, MatchState, Team, CommandContext } from "./model";
+import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { DomainError } from "../../shared/errors/domain-error";
 
 function colorOf(state: MatchState, id: string): string | null | undefined {
@@ -21,14 +22,34 @@ function streakOf(state: MatchState, id: string): number | undefined {
 
 describe("CEN-3: applyGameResult — fechadas", () => {
   it("winner stays, next enters, loser goes to the tail", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "t1"]);
     expect(next.queue).toEqual([]);
   });
 
   it("fechadas with bibs >= teams: each team keeps its fixed color", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(colorOf(next, "t0")).toBe("verde");
     expect(colorOf(next, "t1")).toBe("vermelho");
@@ -36,7 +57,17 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("increments the winner's streak and resets the loser's", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(streakOf(next, "t0")).toBe(1);
     expect(streakOf(next, "t1")).toBe(0);
@@ -44,7 +75,17 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("fewer bibs than teams: the leaving team hands its bib to the next", () => {
-    const state = formInitialState(makePlayers(20), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(20),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t0", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t1", "t2", "t3", "t0"]);
     expect(next.teams.map((t) => t.color)).toEqual([
@@ -56,7 +97,17 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("only two teams and no queue: they replay", () => {
-    const state = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
     expect(streakOf(next, "t0")).toBe(1);
@@ -64,7 +115,17 @@ describe("CEN-3: applyGameResult — fechadas", () => {
   });
 
   it("does not mutate the input state", () => {
-    const state = formInitialState(makePlayers(15), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(15),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const snapshot = JSON.stringify(state);
     applyGameResult(state, "t1", () => "new");
     expect(JSON.stringify(state)).toBe(snapshot);
@@ -73,7 +134,17 @@ describe("CEN-3: applyGameResult — fechadas", () => {
 
 describe("CEN-2: applyGameResult — abertas", () => {
   it("loser dissolves into the queue and a new team is formed immediately", () => {
-    const state = formInitialState(makePlayers(17), { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(17),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "new"]);
     expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
@@ -87,7 +158,17 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("without waiting teams: forms the next team from the queue", () => {
-    const state = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
+    const state = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams).toHaveLength(2);
     expect(next.teams[0]?.id).toBe("t0");
@@ -104,8 +185,21 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("prefers a never-used bib over recycling the one the losing team just wore", () => {
-    const base = formInitialState(makePlayers(12), { teamSize: 5, colors: ["verde", "vermelho", "azul", "amarelo"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
-    const state = { ...base, queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")] };
+    const base = formInitialState(
+      makePlayers(12),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul", "amarelo"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
+    const state = {
+      ...base,
+      queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")],
+    };
     expect(state.queue).toHaveLength(5);
 
     const next = applyGameResult(state, "t0", idGen());
@@ -118,8 +212,21 @@ describe("CEN-2: applyGameResult — abertas", () => {
   });
 
   it("recycles the just-freed bib only once every never-used color is taken", () => {
-    const base = formInitialState(makePlayers(10), { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } }, teamId);
-    const state = { ...base, queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")] };
+    const base = formInitialState(
+      makePlayers(10),
+      {
+        teamSize: 5,
+        colors: ["verde", "vermelho"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      teamId,
+    );
+    const state = {
+      ...base,
+      queue: [...base.queue, mkPlayer("j0"), mkPlayer("j1"), mkPlayer("j2")],
+    };
     expect(state.queue).toHaveLength(3);
 
     const next = applyGameResult(state, "t0", idGen());
@@ -140,7 +247,13 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
 function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
   return {
     status: "ACTIVE",
-    config: { teamSize: 5, colors, gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+    config: {
+      teamSize: 5,
+      colors,
+      gameMinutes: 10,
+      ruleToggles: { arrivalPriority: false },
+      split: DEFAULT_SPLIT_CONFIG,
+    },
     teams,
     queue,
   };
@@ -288,7 +401,13 @@ describe("CEN-9/CEN-10: decideWin", () => {
   function activeState(count: number, colors: string[]): MatchState {
     const state = formInitialState(
       makePlayers(count),
-      { teamSize: 5, colors, gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      {
+        teamSize: 5,
+        colors,
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       (i) => `t${i}`,
     );
     return { ...state, status: "ACTIVE" };
@@ -345,7 +464,13 @@ describe("CEN-11/CEN-12: decideDraw", () => {
   function mkState(teams: Team[]): MatchState {
     return {
       status: "ACTIVE",
-      config: { teamSize: 5, colors: ["verde", "vermelho", "azul"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+      config: {
+        teamSize: 5,
+        colors: ["verde", "vermelho", "azul"],
+        gameMinutes: 10,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
       teams,
       queue: [],
     };
@@ -357,7 +482,11 @@ describe("CEN-11/CEN-12: decideDraw", () => {
 
   it("CEN-11: fewer than two complete waiting teams asks for penalties, without an event", () => {
     const state = mkState([fullTeam("t0"), fullTeam("t1"), fullTeam("t2")]);
-    const result = decideDraw(state, { type: "draw" }, ctx(() => 0));
+    const result = decideDraw(
+      state,
+      { type: "draw" },
+      ctx(() => 0),
+    );
     expect(result).toEqual({ penaltiesRequired: true });
   });
 
@@ -368,13 +497,21 @@ describe("CEN-11/CEN-12: decideDraw", () => {
       fullTeam("t2"),
       fullTeam("t3"),
     ]);
-    const low = decideDraw(state, { type: "draw" }, ctx(() => 0));
+    const low = decideDraw(
+      state,
+      { type: "draw" },
+      ctx(() => 0),
+    );
     if (!("event" in low) || low.event.type !== "GAME_DRAWN") {
       throw new Error("expected a GAME_DRAWN event");
     }
     expect(low.event.firstLeaverTeamId).toBe("t0");
 
-    const high = decideDraw(state, { type: "draw" }, ctx(() => 0.9));
+    const high = decideDraw(
+      state,
+      { type: "draw" },
+      ctx(() => 0.9),
+    );
     if (!("event" in high) || high.event.type !== "GAME_DRAWN") {
       throw new Error("expected a GAME_DRAWN event");
     }
@@ -383,19 +520,33 @@ describe("CEN-11/CEN-12: decideDraw", () => {
   });
 });
 
-const ctx: CommandContext = { random: () => 0, nextId: () => "n0", timerRunning: false };
+const ctx: CommandContext = {
+  random: () => 0,
+  nextId: () => "n0",
+  timerRunning: false,
+};
 
 describe("CEN-13: decidePenalties", () => {
   it("produces GAME_WON with decidedBy penalties", () => {
     const state = {
       ...formInitialState(
         makePlayers(10),
-        { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } },
+        {
+          teamSize: 5,
+          colors: ["verde", "vermelho"],
+          gameMinutes: 10,
+          ruleToggles: { arrivalPriority: false },
+          split: DEFAULT_SPLIT_CONFIG,
+        },
         (i) => `t${i}`,
       ),
       status: "ACTIVE" as const,
     };
-    const result = decidePenalties(state, { type: "penalties", loserTeamId: "t1" }, ctx);
+    const result = decidePenalties(
+      state,
+      { type: "penalties", loserTeamId: "t1" },
+      ctx,
+    );
     if (!("event" in result)) {
       throw new Error("expected an event");
     }

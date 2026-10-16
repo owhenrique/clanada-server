@@ -1,4 +1,8 @@
-import { decodeRuleToggles, type Event } from "../../../domain/match";
+import {
+  decodeSplitConfig,
+  decodeRuleToggles,
+  type Event,
+} from "../../../domain/match";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -20,13 +24,19 @@ function isPlayer(value: unknown): value is { id: string; name: string } {
   return isRecord(value) && isString(value.id) && isString(value.name);
 }
 
-function isPlayerArray(value: unknown): value is { id: string; name: string }[] {
+function isPlayerArray(
+  value: unknown,
+): value is { id: string; name: string }[] {
   return Array.isArray(value) && value.every(isPlayer);
 }
 
-function isMatchConfig(
-  value: unknown,
-): value is { teamSize: number; colors: string[]; gameMinutes: number; ruleToggles?: unknown } {
+function isMatchConfig(value: unknown): value is {
+  teamSize: number;
+  colors: string[];
+  gameMinutes: number;
+  ruleToggles?: unknown;
+  split?: unknown;
+} {
   return (
     isRecord(value) &&
     isNumber(value.teamSize) &&
@@ -39,11 +49,22 @@ function invalidPayload(type: string): never {
   throw new Error(`invariant: invalid persisted event payload for "${type}"`);
 }
 
-function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, unknown>): Event {
-  if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
+function decodeLineup(
+  type: "MATCH_CREATED" | "MATCH_SET_UP",
+  p: Record<string, unknown>,
+): Event {
+  if (
+    !isMatchConfig(p.config) ||
+    !isPlayerArray(p.players) ||
+    !isStringArray(p.teamIds)
+  ) {
     invalidPayload(type);
   }
-  const config = { ...p.config, ruleToggles: decodeRuleToggles(p.config.ruleToggles) };
+  const config = {
+    ...p.config,
+    ruleToggles: decodeRuleToggles(p.config.ruleToggles),
+    split: decodeSplitConfig(p.config.split),
+  };
   return { type, config, players: p.players, teamIds: p.teamIds };
 }
 
@@ -62,7 +83,11 @@ const decoders: Record<Event["type"], EventDecoder> = {
     if (!isString(p.playerAId) || !isString(p.playerBId)) {
       invalidPayload("PLAYERS_SWAPPED");
     }
-    return { type: "PLAYERS_SWAPPED", playerAId: p.playerAId, playerBId: p.playerBId };
+    return {
+      type: "PLAYERS_SWAPPED",
+      playerAId: p.playerAId,
+      playerBId: p.playerBId,
+    };
   },
   MATCH_STARTED: (_p) => ({ type: "MATCH_STARTED" }),
   GAME_WON: (p) => {
@@ -84,13 +109,21 @@ const decoders: Record<Event["type"], EventDecoder> = {
     if (!isString(p.firstLeaverTeamId) || !isStringArray(p.newTeamIds)) {
       invalidPayload("GAME_DRAWN");
     }
-    return { type: "GAME_DRAWN", firstLeaverTeamId: p.firstLeaverTeamId, newTeamIds: p.newTeamIds };
+    return {
+      type: "GAME_DRAWN",
+      firstLeaverTeamId: p.firstLeaverTeamId,
+      newTeamIds: p.newTeamIds,
+    };
   },
   PLAYER_JOINED: (p) => {
     if (!isPlayer(p.player) || !isStringArray(p.newTeamIds)) {
       invalidPayload("PLAYER_JOINED");
     }
-    return { type: "PLAYER_JOINED", player: p.player, newTeamIds: p.newTeamIds };
+    return {
+      type: "PLAYER_JOINED",
+      player: p.player,
+      newTeamIds: p.newTeamIds,
+    };
   },
   PLAYER_LEFT: (p) => {
     if (
@@ -111,7 +144,11 @@ const decoders: Record<Event["type"], EventDecoder> = {
     if (!isNumber(p.teamSize) || !isStringArray(p.newTeamIds)) {
       invalidPayload("TEAM_SIZE_CHANGED");
     }
-    return { type: "TEAM_SIZE_CHANGED", teamSize: p.teamSize, newTeamIds: p.newTeamIds };
+    return {
+      type: "TEAM_SIZE_CHANGED",
+      teamSize: p.teamSize,
+      newTeamIds: p.newTeamIds,
+    };
   },
   MATCH_ENDED: (_p) => ({ type: "MATCH_ENDED" }),
 };

@@ -21,6 +21,7 @@ model Match {
   status         MatchStatus
   version        Int
   snapshot       Json
+  split          Json?
   timerStartedAt DateTime?
   timerElapsedMs Int          @default(0)
   createdAt      DateTime     @default(now())

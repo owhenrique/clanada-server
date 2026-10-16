@@ -3,14 +3,21 @@ import {
   applyEvent,
   decide,
   UNDOABLE_EVENTS,
+  DEFAULT_SPLIT_CONFIG,
   type Event,
   type MatchConfig,
   type MatchState,
   type CommandContext,
 } from "../../../domain/match";
-import type { MatchesRepository } from "./matches.repository";
+import type { MatchSplitState, MatchesRepository } from "./matches.repository";
 
-const config: MatchConfig = { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10, ruleToggles: { arrivalPriority: false } };
+const config: MatchConfig = {
+  teamSize: 2,
+  colors: ["verde", "vermelho"],
+  gameMinutes: 10,
+  ruleToggles: { arrivalPriority: false },
+  split: DEFAULT_SPLIT_CONFIG,
+};
 
 function ctxFor(ids: readonly string[]): CommandContext {
   let index = 0;
@@ -28,7 +35,10 @@ function ctxFor(ids: readonly string[]): CommandContext {
   };
 }
 
-function decideEvent(state: MatchState | null, command: Parameters<typeof decide>[1]): Event {
+function decideEvent(
+  state: MatchState | null,
+  command: Parameters<typeof decide>[1],
+): Event {
   const result = decide(state, command, ctxFor(["p5", "p6", "p7", "t2", "t3"]));
   if (!("event" in result)) {
     throw new Error("expected an event from decide()");
@@ -56,7 +66,11 @@ export function runMatchesRepositoryContract(
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
 
-      const stored = await repository.create({ code: "AB23CD45", event, snapshot });
+      const stored = await repository.create({
+        code: "AB23CD45",
+        event,
+        snapshot,
+      });
 
       expect(stored.version).toBe(1);
       expect(stored.status).toBe(snapshot.status);
@@ -66,7 +80,9 @@ export function runMatchesRepositoryContract(
       expect(found).toEqual(stored);
 
       const events = await repository.listActiveEvents(stored.id);
-      expect(events).toEqual([{ seq: 1, event, createdAt: events[0]?.createdAt }]);
+      expect(events).toEqual([
+        { seq: 1, event, createdAt: events[0]?.createdAt },
+      ]);
     });
 
     it("CEN-2: findByCode returns null for an unknown code", async () => {
@@ -80,7 +96,11 @@ export function runMatchesRepositoryContract(
     it("CEN-3: append with the right version advances it and persists the new snapshot", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN3CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN3CODE",
+        event,
+        snapshot,
+      });
 
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
@@ -105,7 +125,11 @@ export function runMatchesRepositoryContract(
 
       const events = await repository.listActiveEvents(created.id);
       expect(events.map((e) => e.seq)).toEqual([1, 2, 3]);
-      expect(events.map((e) => e.event.type)).toEqual(["MATCH_CREATED", "MATCH_STARTED", "PLAYER_JOINED"]);
+      expect(events.map((e) => e.event.type)).toEqual([
+        "MATCH_CREATED",
+        "MATCH_STARTED",
+        "PLAYER_JOINED",
+      ]);
 
       const found = await repository.findByCode("CEN3CODE");
       expect(found?.version).toBe(3);
@@ -114,7 +138,11 @@ export function runMatchesRepositoryContract(
     it("CEN-4: append with the wrong version leaves state untouched and throws VERSION_CONFLICT", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN4CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN4CODE",
+        event,
+        snapshot,
+      });
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
 
@@ -136,7 +164,11 @@ export function runMatchesRepositoryContract(
     it("CEN-5: append can reset the timer in the same write", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN5CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN5CODE",
+        event,
+        snapshot,
+      });
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
       await repository.append({
@@ -148,7 +180,10 @@ export function runMatchesRepositoryContract(
       await repository.updateTimer({
         matchId: created.id,
         expectedVersion: 2,
-        timer: { startedAt: new Date("2026-01-01T10:00:00Z"), elapsedMs: 900000 },
+        timer: {
+          startedAt: new Date("2026-01-01T10:00:00Z"),
+          elapsedMs: 900000,
+        },
       });
 
       const joined = decideEvent(activeSnapshot, { type: "join", name: "F" });
@@ -168,7 +203,11 @@ export function runMatchesRepositoryContract(
     it("CEN-6: revokeLast undoes the last undoable event", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN6CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN6CODE",
+        event,
+        snapshot,
+      });
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
       const afterStart = await repository.append({
@@ -196,13 +235,20 @@ export function runMatchesRepositoryContract(
       expect(stored.snapshot).toEqual(activeSnapshot);
 
       const events = await repository.listActiveEvents(created.id);
-      expect(events.map((e) => e.event.type)).toEqual(["MATCH_CREATED", "MATCH_STARTED"]);
+      expect(events.map((e) => e.event.type)).toEqual([
+        "MATCH_CREATED",
+        "MATCH_STARTED",
+      ]);
     });
 
     it("CEN-7: revokeLast skips events that are not undoable", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN7CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN7CODE",
+        event,
+        snapshot,
+      });
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
       const afterStart = await repository.append({
@@ -238,16 +284,28 @@ export function runMatchesRepositoryContract(
 
       expect(stored.snapshot).toEqual(activeSnapshot);
       const events = await repository.listActiveEvents(created.id);
-      expect(events.map((e) => e.event.type)).toEqual(["MATCH_CREATED", "MATCH_STARTED", "MATCH_ENDED"]);
+      expect(events.map((e) => e.event.type)).toEqual([
+        "MATCH_CREATED",
+        "MATCH_STARTED",
+        "MATCH_ENDED",
+      ]);
     });
 
     it("CEN-8: revokeLast with nothing undoable throws NOTHING_TO_UNDO and changes nothing", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN8CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN8CODE",
+        event,
+        snapshot,
+      });
 
       await expect(
-        repository.revokeLast({ matchId: created.id, expectedVersion: created.version, snapshot }),
+        repository.revokeLast({
+          matchId: created.id,
+          expectedVersion: created.version,
+          snapshot,
+        }),
       ).rejects.toMatchObject({ code: "NOTHING_TO_UNDO" });
 
       const found = await repository.findByCode("CEN8CODE");
@@ -259,7 +317,11 @@ export function runMatchesRepositoryContract(
     it("CEN-9: updateTimer advances the version without touching events", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN9CODE", event, snapshot });
+      const created = await repository.create({
+        code: "CEN9CODE",
+        event,
+        snapshot,
+      });
 
       const stored = await repository.updateTimer({
         matchId: created.id,
@@ -277,7 +339,11 @@ export function runMatchesRepositoryContract(
     it("CEN-10: two simultaneous appends at the same version — exactly one wins", async () => {
       const repository = createRepository();
       const { event, snapshot } = createdFixture();
-      const created = await repository.create({ code: "CEN10COD", event, snapshot });
+      const created = await repository.create({
+        code: "CEN10COD",
+        event,
+        snapshot,
+      });
       const started = decideEvent(snapshot, { type: "start" });
       const activeSnapshot = applyEvent(snapshot, started);
 
@@ -303,6 +369,30 @@ export function runMatchesRepositoryContract(
 
       const events = await repository.listActiveEvents(created.id);
       expect(events).toHaveLength(2);
+    });
+
+    it("CEN-11: stores the split without advancing the version", async () => {
+      const repository = createRepository();
+      const { event, snapshot } = createdFixture();
+      const created = await repository.create({
+        code: "CEN11COD",
+        event,
+        snapshot,
+      });
+      const split: MatchSplitState = {
+        players: { p0: { pays: true, paidCents: 0, received: false } },
+      };
+
+      expect(created.split).toBeNull();
+      const stored = await repository.updateSplit({
+        matchId: created.id,
+        split,
+      });
+
+      expect(stored.split).toEqual(split);
+      expect(stored.version).toBe(created.version);
+      const found = await repository.findByCode("CEN11COD");
+      expect(found?.split).toEqual(split);
     });
   });
 }
