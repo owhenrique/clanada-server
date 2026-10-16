@@ -372,7 +372,7 @@ export function runMatchesRepositoryContract(
         snapshot,
       });
       const split: MatchSplitState = {
-        players: { p0: { pays: true, paidCents: 0, received: false } },
+        players: { p0: { pays: true, received: true, receivedCents: 1250 } },
       };
 
       expect(created.split).toBeNull();

@@ -63,17 +63,19 @@ function readSplitState(value: Prisma.JsonValue): MatchSplitState | null {
       return null;
     }
     const entry = raw as Record<string, unknown>;
-    if (
-      typeof entry.pays !== "boolean" ||
-      typeof entry.paidCents !== "number" ||
-      typeof entry.received !== "boolean"
-    ) {
+    if (typeof entry.pays !== "boolean" || typeof entry.received !== "boolean") {
       return null;
     }
+    const receivedCents =
+      typeof entry.receivedCents === "number"
+        ? entry.receivedCents
+        : typeof entry.paidCents === "number"
+          ? entry.paidCents
+          : 0;
     parsed[playerId] = {
       pays: entry.pays,
-      paidCents: entry.paidCents,
       received: entry.received,
+      receivedCents,
     };
   }
   return { players: parsed };

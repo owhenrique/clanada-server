@@ -20,16 +20,16 @@ import { generateMatchCode } from "../repositories/match-code";
 import {
   MatchCodeCollisionError,
   MatchesRepository,
-  type MatchSplitPlayerState,
   type StoredEvent,
   type StoredMatch,
 } from "../repositories/matches.repository";
 import { toGameView, type GameView } from "./game-view";
 import {
   findMatchStartedAt,
-  normalizeSplitEntry,
+  splitEntryFromInput,
   splitRosterIds,
   toSplitView,
+  type SplitEntryInput,
   type SplitView,
 } from "./split-view";
 import { toMatchView, type MatchView } from "./match-view";
@@ -140,7 +140,7 @@ export class MatchesService {
   async setSplitPlayer(
     code: string,
     playerId: string,
-    input: MatchSplitPlayerState,
+    input: SplitEntryInput,
   ): Promise<SplitView> {
     const action = "split.setPlayer";
     try {
@@ -150,7 +150,8 @@ export class MatchesService {
       if (!splitRosterIds(stored, activeEvents).has(playerId)) {
         throw new DomainError("PLAYER_NOT_FOUND");
       }
-      const entry = normalizeSplitEntry(input);
+      const current = toSplitView(stored, activeEvents);
+      const entry = splitEntryFromInput(input, current.perPersonCents);
       const players = { ...(stored.split?.players ?? {}), [playerId]: entry };
       const updated = await this.repository.updateSplit({
         matchId: stored.id,
@@ -162,6 +163,7 @@ export class MatchesService {
         playerId,
         pays: entry.pays,
         received: entry.received,
+        receivedCents: entry.receivedCents,
       });
       return toSplitView(updated, activeEvents);
     } catch (error) {
