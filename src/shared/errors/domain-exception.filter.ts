@@ -19,6 +19,8 @@ const HTTP_STATUS_BY_DOMAIN_ERROR_CODE: Record<DomainErrorCode, number> = {
   TIMER_RUNNING: HttpStatus.UNPROCESSABLE_ENTITY,
   TEAM_SIZE_NOT_ALLOWED: HttpStatus.UNPROCESSABLE_ENTITY,
   NOTHING_TO_UNDO: HttpStatus.UNPROCESSABLE_ENTITY,
+  SPLIT_DISABLED: HttpStatus.UNPROCESSABLE_ENTITY,
+  SPLIT_NOT_READY: HttpStatus.UNPROCESSABLE_ENTITY,
   TOO_MANY_LOOKUPS: HttpStatus.TOO_MANY_REQUESTS,
 };
 
@@ -36,13 +38,21 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof DomainError) {
-      response.status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code]).json({ code: exception.code });
+      response
+        .status(HTTP_STATUS_BY_DOMAIN_ERROR_CODE[exception.code])
+        .json({ code: exception.code });
       return;
     }
 
     if (exception instanceof HttpException) {
       if (exception.getStatus() >= 500) {
-        this.logger.error({ err: exception, ...this.requestContext(http.getRequest<RequestWithId>()) }, "Http exception");
+        this.logger.error(
+          {
+            err: exception,
+            ...this.requestContext(http.getRequest<RequestWithId>()),
+          },
+          "Http exception",
+        );
       }
       response.status(exception.getStatus()).json(exception.getResponse());
       return;
@@ -68,7 +78,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
     response.status(status).json({ code });
   }
 
-  private requestContext(request: RequestWithId): { method: string; url: string; requestId?: string | number } {
-    return { method: request.method, url: request.originalUrl, requestId: request.id };
+  private requestContext(request: RequestWithId): {
+    method: string;
+    url: string;
+    requestId?: string | number;
+  } {
+    return {
+      method: request.method,
+      url: request.originalUrl,
+      requestId: request.id,
+    };
   }
 }

@@ -1,8 +1,18 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { ArrayMinSize, ArrayUnique, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from "class-validator";
+import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsIn,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+  ValidateNested,
+} from "class-validator";
 import { BIB_COLOR_KEYS } from "./bib-colors";
 import { RuleTogglesDto, RuleTogglesViewDto } from "./rule-toggles.dto";
+import { SplitConfigDto, SplitConfigViewDto } from "./split-config.dto";
 
 export class MatchConfigDto {
   @ApiProperty({ minimum: 2 })
@@ -27,9 +37,21 @@ export class MatchConfigDto {
   @ValidateNested()
   @Type(() => RuleTogglesDto)
   ruleToggles?: RuleTogglesDto;
+
+  @ApiPropertyOptional({ type: SplitConfigDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SplitConfigDto)
+  split?: SplitConfigDto;
 }
 
-export class MatchConfigViewDto extends OmitType(MatchConfigDto, ["ruleToggles"] as const) {
+export class MatchConfigViewDto extends OmitType(MatchConfigDto, [
+  "ruleToggles",
+  "split",
+] as const) {
   @ApiProperty({ type: RuleTogglesViewDto })
   ruleToggles!: RuleTogglesViewDto;
+
+  @ApiProperty({ type: SplitConfigViewDto })
+  split!: SplitConfigViewDto;
 }

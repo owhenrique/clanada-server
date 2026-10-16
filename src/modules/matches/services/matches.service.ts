@@ -9,6 +9,7 @@ import {
   assertValidState,
   decide,
   replay,
+  splitDueAtMs,
   type Command,
   type CommandContext,
   type Event,
@@ -16,8 +17,21 @@ import {
 } from "../../../domain/match";
 import { GameHistoryRepository } from "../repositories/game-history.repository";
 import { generateMatchCode } from "../repositories/match-code";
-import { MatchCodeCollisionError, MatchesRepository, type StoredMatch } from "../repositories/matches.repository";
+import {
+  MatchCodeCollisionError,
+  MatchesRepository,
+  type MatchSplitPlayerState,
+  type StoredEvent,
+  type StoredMatch,
+} from "../repositories/matches.repository";
 import { toGameView, type GameView } from "./game-view";
+import {
+  findMatchStartedAt,
+  normalizeSplitEntry,
+  splitRosterIds,
+  toSplitView,
+  type SplitView,
+} from "./split-view";
 import { toMatchView, type MatchView } from "./match-view";
 import { applyTimerAction, type TimerAction } from "./timer";
 import { findUndoableTarget } from "./undoable-target";
@@ -47,7 +61,15 @@ export class MatchesService {
   async create(input: { config: CreateMatchConfig; playerNames: string[] }): Promise<MatchView> {
     try {
       const ctx = this.contextFor(false);
-      const result = decide(null, { type: "create", playerNames: input.playerNames, config: input.config }, ctx);
+      const result = decide(
+        null,
+        {
+          type: "create",
+          playerNames: input.playerNames,
+          config: input.config,
+        },
+        ctx,
+      );
       const event = requireEvent(result);
       const snapshot = applyEvent(null, event);
       assertValidState(snapshot);
@@ -56,9 +78,18 @@ export class MatchesService {
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
         const code = generateMatchCode(this.randomSource);
         try {
-          const stored = await this.repository.create({ code, event, snapshot });
+          const stored = await this.repository.create({
+            code,
+            event,
+            snapshot,
+          });
           const view = await this.buildView(stored);
-          this.logger.info({ action: "create", matchCode: stored.code, eventType: event.type, version: stored.version });
+          this.logger.info({
+            action: "create",
+            matchCode: stored.code,
+            eventType: event.type,
+            version: stored.version,
+          });
           return view;
         } catch (error) {
           if (error instanceof MatchCodeCollisionError) {
@@ -71,7 +102,11 @@ export class MatchesService {
       throw lastError;
     } catch (error) {
       if (error instanceof DomainError) {
-        this.logger.warn({ action: "create", matchCode: null, code: error.code });
+        this.logger.warn({
+          action: "create",
+          matchCode: null,
+          code: error.code,
+        });
       }
       throw error;
     }
@@ -87,12 +122,82 @@ export class MatchesService {
     return records.map(toGameView);
   }
 
+  async getSplit(code: string): Promise<SplitView> {
+    const action = "split.get";
+    try {
+      const stored = await this.lookup(code);
+      const activeEvents = await this.repository.listActiveEvents(stored.id);
+      this.assertSplitReady(stored, activeEvents);
+      return toSplitView(stored, activeEvents);
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
+  }
+
+  async setSplitPlayer(
+    code: string,
+    playerId: string,
+    input: MatchSplitPlayerState,
+  ): Promise<SplitView> {
+    const action = "split.setPlayer";
+    try {
+      const stored = await this.lookup(code);
+      const activeEvents = await this.repository.listActiveEvents(stored.id);
+      this.assertSplitReady(stored, activeEvents);
+      if (!splitRosterIds(stored, activeEvents).has(playerId)) {
+        throw new DomainError("PLAYER_NOT_FOUND");
+      }
+      const entry = normalizeSplitEntry(input);
+      const players = { ...(stored.split?.players ?? {}), [playerId]: entry };
+      const updated = await this.repository.updateSplit({
+        matchId: stored.id,
+        split: { players },
+      });
+      this.logger.info({
+        action,
+        matchCode: updated.code,
+        playerId,
+        pays: entry.pays,
+        received: entry.received,
+      });
+      return toSplitView(updated, activeEvents);
+    } catch (error) {
+      if (error instanceof DomainError) {
+        this.logger.warn({ action, matchCode: code, code: error.code });
+      }
+      throw error;
+    }
+  }
+
   private async lookup(code: string): Promise<StoredMatch> {
     const stored = await this.repository.findByCode(code);
     if (stored === null) {
       throw new DomainError("MATCH_NOT_FOUND");
     }
     return stored;
+  }
+
+  private assertSplitReady(stored: StoredMatch, activeEvents: readonly StoredEvent[]): void {
+    if (!stored.snapshot.config.split.enabled) {
+      throw new DomainError("SPLIT_DISABLED");
+    }
+    if (stored.status === "DRAFT") {
+      throw new DomainError("INVALID_STATUS");
+    }
+    if (stored.status !== "ACTIVE") {
+      return;
+    }
+    const startedAt = findMatchStartedAt(activeEvents);
+    if (startedAt === null) {
+      throw new DomainError("SPLIT_NOT_READY");
+    }
+    const dueAtMs = splitDueAtMs(startedAt.getTime(), stored.snapshot.config.split.durationMinutes);
+    if (this.clock.now().getTime() < dueAtMs) {
+      throw new DomainError("SPLIT_NOT_READY");
+    }
   }
 
   async timer(code: string, expectedVersion: number, timerAction: TimerAction): Promise<MatchView> {
@@ -115,9 +220,17 @@ export class MatchesService {
       }
 
       try {
-        const updated = await this.repository.updateTimer({ matchId: stored.id, expectedVersion, timer });
+        const updated = await this.repository.updateTimer({
+          matchId: stored.id,
+          expectedVersion,
+          timer,
+        });
         const view = await this.buildView(updated);
-        this.logger.info({ action, matchCode: updated.code, version: updated.version });
+        this.logger.info({
+          action,
+          matchCode: updated.code,
+          version: updated.version,
+        });
         return view;
       } catch (error) {
         if (error instanceof DomainError && error.code === "VERSION_CONFLICT") {
@@ -182,7 +295,11 @@ export class MatchesService {
       }
     } catch (error) {
       if (error instanceof DomainError) {
-        this.logger.warn({ action: command.type, matchCode: code, code: error.code });
+        this.logger.warn({
+          action: command.type,
+          matchCode: code,
+          code: error.code,
+        });
       }
       throw error;
     }
@@ -211,7 +328,9 @@ export class MatchesService {
         throw new Error("invariant: findUndoableTarget returned an out-of-range index");
       }
 
-      const remainingEvents = activeEvents.filter((_, index) => index !== targetIndex).map((stored) => stored.event);
+      const remainingEvents = activeEvents
+        .filter((_, index) => index !== targetIndex)
+        .map((stored) => stored.event);
       const snapshot = replay(remainingEvents);
       assertValidState(snapshot);
 

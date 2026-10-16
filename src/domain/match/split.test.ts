@@ -4,10 +4,7 @@ import type { Event, MatchConfig, Player } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { computeSplit, projectDepartedPlayers, splitDueAtMs } from "./split";
 
-function entry(
-  pays: boolean,
-  paidCents: number,
-): { pays: boolean; paidCents: number } {
+function entry(pays: boolean, paidCents: number): { pays: boolean; paidCents: number } {
   return { pays, paidCents };
 }
 

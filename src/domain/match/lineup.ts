@@ -61,9 +61,7 @@ export function compactQueue(
 
 export function usedColors(teams: Team[]): Set<string> {
   return new Set(
-    teams
-      .map((team) => team.color)
-      .filter((color): color is string => color !== null),
+    teams.map((team) => team.color).filter((color): color is string => color !== null),
   );
 }
 
@@ -83,9 +81,7 @@ export function assignBibs(
       .map((team) => team.color)
       .filter((color): color is string => color !== null),
   );
-  const neverUsed = colors.filter(
-    (color) => !held.has(color) && !previouslyHeldColors.has(color),
-  );
+  const neverUsed = colors.filter((color) => !held.has(color) && !previouslyHeldColors.has(color));
   const recentlyFreed = colors.filter(
     (color) => !held.has(color) && previouslyHeldColors.has(color),
   );
@@ -115,10 +111,7 @@ export function orderPlayers(
     return shuffle(players, rng);
   }
   const fieldCount = Math.min(seatedCount, 2 * teamSize);
-  return [
-    ...shuffle(players.slice(0, fieldCount), rng),
-    ...players.slice(fieldCount),
-  ];
+  return [...shuffle(players.slice(0, fieldCount), rng), ...players.slice(fieldCount)];
 }
 
 export function decideCreate(
@@ -179,10 +172,7 @@ export function decideReshuffle(
   ctx: CommandContext,
 ): DecideResult {
   const current = requireState(state);
-  const seatedCount = current.teams.reduce(
-    (count, team) => count + team.players.length,
-    0,
-  );
+  const seatedCount = current.teams.reduce((count, team) => count + team.players.length, 0);
   const order = orderPlayers(
     flattenPlayers(current),
     seatedCount,

@@ -11,6 +11,8 @@ export type DomainErrorCode =
   | "TIMER_RUNNING"
   | "TEAM_SIZE_NOT_ALLOWED"
   | "NOTHING_TO_UNDO"
+  | "SPLIT_DISABLED"
+  | "SPLIT_NOT_READY"
   | "TOO_MANY_LOOKUPS";
 
 export class DomainError extends Error {

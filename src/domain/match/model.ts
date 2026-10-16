@@ -12,9 +12,7 @@ export const LEGACY_RULE_TOGGLES: RuleToggles = {
 
 const RULE_KEYS = Object.keys(DEFAULT_RULE_TOGGLES) as (keyof RuleToggles)[];
 
-export function resolveRuleToggles(
-  partial: Partial<RuleToggles> | undefined,
-): RuleToggles {
+export function resolveRuleToggles(partial: Partial<RuleToggles> | undefined): RuleToggles {
   return { ...DEFAULT_RULE_TOGGLES, ...partial };
 }
 
@@ -45,19 +43,12 @@ export const DEFAULT_SPLIT_CONFIG: SplitConfig = {
   durationMinutes: 120,
 };
 
-export function resolveSplitConfig(
-  partial: Partial<SplitConfig> | undefined,
-): SplitConfig {
+export function resolveSplitConfig(partial: Partial<SplitConfig> | undefined): SplitConfig {
   return { ...DEFAULT_SPLIT_CONFIG, ...partial };
 }
 
 function isValidSplitRate(value: unknown): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 1 &&
-    value <= 100000
-  );
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100000;
 }
 
 function isValidSplitDuration(value: unknown): value is number {
@@ -120,8 +111,7 @@ export type MatchState = {
 export type TeamIdFactory = (index: number) => string;
 
 export type DrawOutcome =
-  | { type: "swap"; state: MatchState; firstLeaverTeamId: string }
-  | { type: "penalties" };
+  { type: "swap"; state: MatchState; firstLeaverTeamId: string } | { type: "penalties" };
 
 export type MatchCreatedEvent = {
   type: "MATCH_CREATED";

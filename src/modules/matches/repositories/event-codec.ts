@@ -1,8 +1,4 @@
-import {
-  decodeSplitConfig,
-  decodeRuleToggles,
-  type Event,
-} from "../../../domain/match";
+import { decodeSplitConfig, decodeRuleToggles, type Event } from "../../../domain/match";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -24,9 +20,7 @@ function isPlayer(value: unknown): value is { id: string; name: string } {
   return isRecord(value) && isString(value.id) && isString(value.name);
 }
 
-function isPlayerArray(
-  value: unknown,
-): value is { id: string; name: string }[] {
+function isPlayerArray(value: unknown): value is { id: string; name: string }[] {
   return Array.isArray(value) && value.every(isPlayer);
 }
 
@@ -49,15 +43,8 @@ function invalidPayload(type: string): never {
   throw new Error(`invariant: invalid persisted event payload for "${type}"`);
 }
 
-function decodeLineup(
-  type: "MATCH_CREATED" | "MATCH_SET_UP",
-  p: Record<string, unknown>,
-): Event {
-  if (
-    !isMatchConfig(p.config) ||
-    !isPlayerArray(p.players) ||
-    !isStringArray(p.teamIds)
-  ) {
+function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, unknown>): Event {
+  if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
     invalidPayload(type);
   }
   const config = {

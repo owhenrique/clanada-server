@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseInterceptors } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseInterceptors,
+} from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import {
   ApiCreatedResponse,
@@ -15,14 +27,18 @@ import { CreateMatchDto } from "../dto/create-match.dto";
 import { JoinPlayerDto } from "../dto/join-player.dto";
 import { LeaveQueryDto } from "../dto/leave-query.dto";
 import { LoserTeamDto } from "../dto/loser-team.dto";
+import { SetSplitPlayerDto } from "../dto/set-split-player.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
 import { GameView } from "../services/game-view";
 import { MatchView, PenaltiesRequiredView } from "../services/match-view";
+import { SplitView } from "../services/split-view";
 import { MatchLookupInterceptor } from "../http/match-lookup.interceptor";
 import { MatchesService } from "../services/matches.service";
 
 @ApiTags("matches")
-@ApiTooManyRequestsResponse({ description: "Rate limit por IP excedido ou TOO_MANY_LOOKUPS." })
+@ApiTooManyRequestsResponse({
+  description: "Rate limit por IP excedido ou TOO_MANY_LOOKUPS.",
+})
 @SkipThrottle({ create: true })
 @UseInterceptors(MatchLookupInterceptor)
 @Controller("matches")
@@ -33,7 +49,10 @@ export class MatchesController {
   @SkipThrottle({ create: false })
   @ApiCreatedResponse({ type: MatchView })
   create(@Body() dto: CreateMatchDto): Promise<MatchView> {
-    return this.matchesService.create({ config: dto.config, playerNames: dto.playerNames });
+    return this.matchesService.create({
+      config: dto.config,
+      playerNames: dto.playerNames,
+    });
   }
 
   @Get(":code")
@@ -46,6 +65,23 @@ export class MatchesController {
   @ApiOkResponse({ type: [GameView] })
   listGames(@Param("code") code: string): Promise<GameView[]> {
     return this.matchesService.listGames(code);
+  }
+
+  @Get(":code/split")
+  @ApiOkResponse({ type: SplitView })
+  getSplit(@Param("code") code: string): Promise<SplitView> {
+    return this.matchesService.getSplit(code);
+  }
+
+  @Put(":code/split/players/:playerId")
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SplitView })
+  setSplitPlayer(
+    @Param("code") code: string,
+    @Param("playerId") playerId: string,
+    @Body() dto: SetSplitPlayerDto,
+  ): Promise<SplitView> {
+    return this.matchesService.setSplitPlayer(code, playerId, dto);
   }
 
   @Post(":code/reshuffle")
@@ -95,7 +131,10 @@ export class MatchesController {
     @IfMatch() version: number,
     @Body() dto: LoserTeamDto,
   ): Promise<MatchView | { penaltiesRequired: true }> {
-    return this.matchesService.execute(code, version, { type: "win", loserTeamId: dto.loserTeamId });
+    return this.matchesService.execute(code, version, {
+      type: "win",
+      loserTeamId: dto.loserTeamId,
+    });
   }
 
   @Post(":code/games/draw")
@@ -103,7 +142,9 @@ export class MatchesController {
   @ApiHeader({ name: "If-Match", required: true })
   @ApiExtraModels(MatchView, PenaltiesRequiredView)
   @ApiOkResponse({
-    schema: { oneOf: [{ $ref: getSchemaPath(MatchView) }, { $ref: getSchemaPath(PenaltiesRequiredView) }] },
+    schema: {
+      oneOf: [{ $ref: getSchemaPath(MatchView) }, { $ref: getSchemaPath(PenaltiesRequiredView) }],
+    },
   })
   draw(
     @Param("code") code: string,
@@ -121,7 +162,10 @@ export class MatchesController {
     @IfMatch() version: number,
     @Body() dto: LoserTeamDto,
   ): Promise<MatchView | { penaltiesRequired: true }> {
-    return this.matchesService.execute(code, version, { type: "penalties", loserTeamId: dto.loserTeamId });
+    return this.matchesService.execute(code, version, {
+      type: "penalties",
+      loserTeamId: dto.loserTeamId,
+    });
   }
 
   @Post(":code/players")
@@ -133,7 +177,10 @@ export class MatchesController {
     @IfMatch() version: number,
     @Body() dto: JoinPlayerDto,
   ): Promise<MatchView | { penaltiesRequired: true }> {
-    return this.matchesService.execute(code, version, { type: "join", name: dto.name });
+    return this.matchesService.execute(code, version, {
+      type: "join",
+      name: dto.name,
+    });
   }
 
   @Delete(":code/players/:playerId")
@@ -145,7 +192,11 @@ export class MatchesController {
     @IfMatch() version: number,
     @Query() dto: LeaveQueryDto,
   ): Promise<MatchView | { penaltiesRequired: true }> {
-    return this.matchesService.execute(code, version, { type: "leave", playerId, fallback: dto.fallback });
+    return this.matchesService.execute(code, version, {
+      type: "leave",
+      playerId,
+      fallback: dto.fallback,
+    });
   }
 
   @Put(":code/setup")
@@ -173,7 +224,10 @@ export class MatchesController {
     @IfMatch() version: number,
     @Body() dto: ChangeTeamSizeDto,
   ): Promise<MatchView | { penaltiesRequired: true }> {
-    return this.matchesService.execute(code, version, { type: "changeTeamSize", teamSize: dto.teamSize });
+    return this.matchesService.execute(code, version, {
+      type: "changeTeamSize",
+      teamSize: dto.teamSize,
+    });
   }
 
   @Post(":code/end")

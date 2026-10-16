@@ -1,14 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkPlayer } from "./test-fixtures";
 import { assertValidState, InvariantViolation } from "./invariants";
-import type {
-  MatchState,
-  Team,
-  Player,
-  Command,
-  DecideResult,
-  Event,
-} from "./model";
+import type { MatchState, Team, Player, Command, DecideResult, Event } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { decide, applyEvent, replay } from "./engine";
 import { flattenPlayers } from "./lineup";
@@ -65,11 +58,7 @@ describe("CEN-21 a CEN-26: assertValidState", () => {
       mkPlayer("t1-2"),
       mkPlayer("t1-3"),
     ]);
-    const state = mkState(
-      [fullTeam("t0", "verde"), short],
-      [],
-      ["verde", "vermelho"],
-    );
+    const state = mkState([fullTeam("t0", "verde"), short], [], ["verde", "vermelho"]);
     try {
       assertValidState(state);
       throw new Error("expected assertValidState to throw");
@@ -94,11 +83,7 @@ describe("CEN-21 a CEN-26: assertValidState", () => {
 
   it("CEN-24: two teams with the same color throw COLOR_REUSED", () => {
     const state = mkState(
-      [
-        fullTeam("t0", "verde"),
-        fullTeam("t1", "vermelho"),
-        fullTeam("t2", "verde"),
-      ],
+      [fullTeam("t0", "verde"), fullTeam("t1", "vermelho"), fullTeam("t2", "verde")],
       [],
       ["verde", "vermelho", "azul"],
     );
@@ -112,11 +97,7 @@ describe("CEN-21 a CEN-26: assertValidState", () => {
 
   it("CEN-25: more colored teams than colors.length throws COLOR_COUNT_EXCEEDS_LIMIT", () => {
     const state = mkState(
-      [
-        fullTeam("t0", "verde"),
-        fullTeam("t1", "vermelho"),
-        fullTeam("t2", "azul"),
-      ],
+      [fullTeam("t0", "verde"), fullTeam("t1", "vermelho"), fullTeam("t2", "azul")],
       [],
       ["verde", "vermelho"],
     );
@@ -124,9 +105,7 @@ describe("CEN-21 a CEN-26: assertValidState", () => {
       assertValidState(state);
       throw new Error("expected assertValidState to throw");
     } catch (error) {
-      expect((error as InvariantViolation).rule).toBe(
-        "COLOR_COUNT_EXCEEDS_LIMIT",
-      );
+      expect((error as InvariantViolation).rule).toBe("COLOR_COUNT_EXCEEDS_LIMIT");
     }
   });
 
@@ -170,8 +149,7 @@ function idFactory(prefix: string): () => string {
   return () => `${prefix}${n++}`;
 }
 
-type ActiveOption =
-  "swap" | "win" | "draw" | "join" | "leave" | "changeTeamSize";
+type ActiveOption = "swap" | "win" | "draw" | "join" | "leave" | "changeTeamSize";
 
 function activeOptions(state: MatchState): ActiveOption[] {
   const options: ActiveOption[] = ["swap", "win", "draw", "changeTeamSize"];
@@ -267,10 +245,7 @@ describe("CEN-28 (S3) / CEN-14 (S4): property — 500 valid random commands neve
       try {
         result = decide(state, command, ctx);
       } catch (error) {
-        if (
-          error instanceof DomainError &&
-          error.code === "TEAM_SIZE_NOT_ALLOWED"
-        ) {
+        if (error instanceof DomainError && error.code === "TEAM_SIZE_NOT_ALLOWED") {
           continue;
         }
         throw error;
