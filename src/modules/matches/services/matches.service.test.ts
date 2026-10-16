@@ -1862,4 +1862,93 @@ describe("MatchesService court split", () => {
     const departed = view.players.at(-1);
     expect(departed?.paidCents).toBe(2000);
   });
+
+  it("getSplit marks a player joining after half as payer and recalculates the share", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config: splitConfig, playerNames });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    await advanceToDueAt(clock, repository, created.code);
+    const before = await service.getSplit(created.code);
+    expect(before.perPersonCents).toBe(5000);
+
+    await service.execute(created.code, started.version, { type: "join", name: "Fabio" });
+    const view = await service.getSplit(created.code);
+
+    const joiner = view.players.find((player) => player.name === "Fabio");
+    expect(joiner?.left).toBe(false);
+    expect(joiner?.pays).toBe(true);
+    expect(joiner?.owedCents).toBe(4000);
+    expect(view.payerCount).toBe(5);
+    expect(view.perPersonCents).toBe(4000);
+  });
+
+  it("getSplit marks a departed player as payer by default", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const wideConfig: MatchConfig = { ...splitConfig, teamSize: 5 };
+    const created = await service.create({
+      config: wideConfig,
+      playerNames: sixteenNames,
+    });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    await advanceToDueAt(clock, repository, created.code);
+    const leaver = started.queue[0]?.id;
+    if (leaver === undefined) {
+      throw new Error("missing queue player");
+    }
+
+    await service.execute(created.code, started.version, {
+      type: "leave",
+      playerId: leaver,
+    });
+    const view = await service.getSplit(created.code);
+
+    const departed = view.players.at(-1);
+    expect(departed?.id).toBe(leaver);
+    expect(departed?.left).toBe(true);
+    expect(departed?.pays).toBe(true);
+    expect(departed?.paidCents).toBe(0);
+    expect(departed?.owedCents).toBe(1250);
+    expect(view.payerCount).toBe(16);
+    expect(view.perPersonCents).toBe(1250);
+  });
+
+  it("undoing a departure keeps the split marking", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, repository } = makeService({ clock });
+    const wideConfig: MatchConfig = { ...splitConfig, teamSize: 5 };
+    const created = await service.create({
+      config: wideConfig,
+      playerNames: sixteenNames,
+    });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    await advanceToDueAt(clock, repository, created.code);
+    const leaver = started.queue[0]?.id;
+    if (leaver === undefined) {
+      throw new Error("missing queue player");
+    }
+    const afterLeave = asView(
+      await service.execute(created.code, started.version, {
+        type: "leave",
+        playerId: leaver,
+      }),
+    );
+    await service.setSplitPlayer(created.code, leaver, {
+      pays: false,
+      paidCents: 2000,
+      received: false,
+    });
+
+    await service.undo(created.code, afterLeave.version);
+    const view = await service.getSplit(created.code);
+
+    const returned = view.players.find((player) => player.id === leaver);
+    expect(returned?.left).toBe(false);
+    expect(returned?.pays).toBe(false);
+    expect(returned?.paidCents).toBe(2000);
+    expect(view.payerCount).toBe(15);
+    expect(view.remainingCents).toBe(18000);
+    expect(view.perPersonCents).toBe(1200);
+  });
 });
