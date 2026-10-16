@@ -71,9 +71,7 @@ describe("EventLogGameHistoryRepository", () => {
       snapshot,
     });
 
-    const games = await new EventLogGameHistoryRepository(
-      matches,
-    ).listByMatchId(stored.id);
+    const games = await new EventLogGameHistoryRepository(matches).listByMatchId(stored.id);
 
     expect(
       games.map(({ number, outcome, winnerTeamId }) => ({

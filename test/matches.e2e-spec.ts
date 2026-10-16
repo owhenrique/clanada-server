@@ -7,6 +7,7 @@ import type { Prisma } from "../src/generated/prisma/client";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
 import type { GameView } from "../src/modules/matches/services/game-view";
 import type { MatchView } from "../src/modules/matches/services/match-view";
+import type { SplitView } from "../src/modules/matches/services/split-view";
 
 type HttpServer = Parameters<typeof request>[0];
 
@@ -70,7 +71,10 @@ describe("Matches API (e2e)", () => {
     ["fewer than 2 colors", { ...createBody, config: { ...createBody.config, colors: ["verde"] } }],
     [
       "color outside the palette",
-      { ...createBody, config: { ...createBody.config, colors: ["verde", "invisivel"] } },
+      {
+        ...createBody,
+        config: { ...createBody.config, colors: ["verde", "invisivel"] },
+      },
     ],
     ["gameMinutes 0", { ...createBody, config: { ...createBody.config, gameMinutes: 0 } }],
     ["empty playerNames", { ...createBody, playerNames: [] }],
@@ -116,7 +120,11 @@ describe("Matches API (e2e)", () => {
 
     const fetchedResponse = await request(httpServerOf(app)).get(`/api/matches/${code}`);
     expect(fetchedResponse.status).toBe(200);
-    expect(viewOf(fetchedResponse)).toMatchObject({ code, status: "ACTIVE", version: 4 });
+    expect(viewOf(fetchedResponse)).toMatchObject({
+      code,
+      status: "ACTIVE",
+      version: 4,
+    });
   });
 
   it("CEN-7: GET /api/matches/:code with an unknown code returns 404", async () => {
@@ -129,7 +137,9 @@ describe("Matches API (e2e)", () => {
   it("CEN-15: mutation without If-Match returns 400", async () => {
     const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
 
-    const response = await request(httpServerOf(app)).post(`/api/matches/${created.code}/reshuffle`).send();
+    const response = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/reshuffle`)
+      .send();
 
     expect(response.status).toBe(400);
   });
@@ -143,7 +153,11 @@ describe("Matches API (e2e)", () => {
       .send();
 
     expect(response.status).toBe(412);
-    expect(viewOf(response)).toMatchObject({ code: created.code, version: 1, status: "DRAFT" });
+    expect(viewOf(response)).toMatchObject({
+      code: created.code,
+      version: 1,
+      status: "DRAFT",
+    });
 
     const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
     expect(fetched.version).toBe(1);
@@ -168,7 +182,11 @@ describe("Matches API (e2e)", () => {
       .send({ name: "Gil" });
 
     expect(response.status).toBe(412);
-    expect(viewOf(response)).toMatchObject({ code: created.code, version: 1, status: "DRAFT" });
+    expect(viewOf(response)).toMatchObject({
+      code: created.code,
+      version: 1,
+      status: "DRAFT",
+    });
 
     const fetched = viewOf(await request(httpServerOf(app)).get(`/api/matches/${created.code}`));
     expect(fetched.version).toBe(1);
@@ -180,12 +198,17 @@ describe("Matches API (e2e)", () => {
       playerNames: ["Ana", "Beto", "Caio", "Duda", "Eva"],
     };
 
-    const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(fivePlayerBody));
+    const created = viewOf(
+      await request(httpServerOf(app)).post("/api/matches").send(fivePlayerBody),
+    );
     const code = created.code;
     expect(created.version).toBe(1);
 
     const started = viewOf(
-      await request(httpServerOf(app)).post(`/api/matches/${code}/start`).set("If-Match", "1").send(),
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/start`)
+        .set("If-Match", "1")
+        .send(),
     );
     expect(started.status).toBe("ACTIVE");
     expect(started.version).toBe(2);
@@ -267,7 +290,10 @@ describe("Matches API (e2e)", () => {
     expect(resized.teams).toHaveLength(2);
 
     const undo1 = viewOf(
-      await request(httpServerOf(app)).post(`/api/matches/${code}/undo`).set("If-Match", "8").send(),
+      await request(httpServerOf(app))
+        .post(`/api/matches/${code}/undo`)
+        .set("If-Match", "8")
+        .send(),
     );
     expect(undo1.version).toBe(9);
     const undo2 = viewOf(
@@ -341,9 +367,14 @@ describe("Matches API (e2e)", () => {
       .set("If-Match", String(paused.version))
       .send();
     expect(resetResponse.status).toBe(200);
-    expect(viewOf(resetResponse).timer).toEqual({ startedAt: null, elapsedMs: 0 });
+    expect(viewOf(resetResponse).timer).toEqual({
+      startedAt: null,
+      elapsedMs: 0,
+    });
 
-    const withoutIfMatch = await request(httpServerOf(app)).post(`/api/matches/${code}/timer/start`).send();
+    const withoutIfMatch = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/timer/start`)
+      .send();
     expect(withoutIfMatch.status).toBe(400);
   });
 
@@ -364,7 +395,10 @@ describe("Matches API (e2e)", () => {
     const created = viewOf(await request(server).post("/api/matches").send(createBody));
     const code = created.code;
     const started = viewOf(
-      await request(server).post(`/api/matches/${code}/start`).set("If-Match", String(created.version)).send(),
+      await request(server)
+        .post(`/api/matches/${code}/start`)
+        .set("If-Match", String(created.version))
+        .send(),
     );
     const winnerId = started.teams[0]?.id;
     const loserId = started.teams[1]?.id;
@@ -375,7 +409,10 @@ describe("Matches API (e2e)", () => {
         .send({ loserTeamId: loserId }),
     );
     const undone = viewOf(
-      await request(server).post(`/api/matches/${code}/undo`).set("If-Match", String(won.version)).send(),
+      await request(server)
+        .post(`/api/matches/${code}/undo`)
+        .set("If-Match", String(won.version))
+        .send(),
     );
     const decided = viewOf(
       await request(server)
@@ -383,14 +420,21 @@ describe("Matches API (e2e)", () => {
         .set("If-Match", String(undone.version))
         .send({ loserTeamId: loserId }),
     );
-    await request(server).post(`/api/matches/${code}/end`).set("If-Match", String(decided.version)).send();
+    await request(server)
+      .post(`/api/matches/${code}/end`)
+      .set("If-Match", String(decided.version))
+      .send();
 
     const response = await request(server).get(`/api/matches/${code}/games`);
     const games = response.body as GameView[];
 
     expect(response.status).toBe(200);
     expect(games).toHaveLength(1);
-    expect(games[0]).toMatchObject({ number: 1, outcome: "penalties", winnerTeamId: winnerId });
+    expect(games[0]).toMatchObject({
+      number: 1,
+      outcome: "penalties",
+      winnerTeamId: winnerId,
+    });
     expect(games[0]?.teams.map((team) => team.teamId)).toEqual([winnerId, loserId]);
     expect(games[0]?.teams[0]?.players).toEqual(started.teams[0]?.players);
     expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
@@ -407,29 +451,40 @@ describe("Matches API (e2e)", () => {
     ["omitted", undefined, true],
     ["empty", {}, true],
     ["off", { arrivalPriority: false }, false],
-  ])("F4 CEN-10: POST /api/matches resolves rule toggles (%s)", async (_label, ruleToggles, expected) => {
-    const server = httpServerOf(app);
-    const created = viewOf(
-      await request(server)
-        .post("/api/matches")
-        .send({ ...createBody, config: { ...createBody.config, ruleToggles } }),
-    );
+  ])(
+    "F4 CEN-10: POST /api/matches resolves rule toggles (%s)",
+    async (_label, ruleToggles, expected) => {
+      const server = httpServerOf(app);
+      const created = viewOf(
+        await request(server)
+          .post("/api/matches")
+          .send({
+            ...createBody,
+            config: { ...createBody.config, ruleToggles },
+          }),
+      );
 
-    const response = await request(server).get(`/api/matches/${created.code}`);
+      const response = await request(server).get(`/api/matches/${created.code}`);
 
-    expect(viewOf(response).config.ruleToggles).toEqual({ arrivalPriority: expected });
-  });
+      expect(viewOf(response).config.ruleToggles).toEqual({
+        arrivalPriority: expected,
+      });
+    },
+  );
 
   it.each([
     ["non-boolean value", { arrivalPriority: "sim" }],
     ["unknown key", { arrivalPriority: true, bogus: true }],
-  ])("F4 CEN-10: POST /api/matches rejects invalid rule toggles (%s)", async (_label, ruleToggles) => {
-    const response = await request(httpServerOf(app))
-      .post("/api/matches")
-      .send({ ...createBody, config: { ...createBody.config, ruleToggles } });
+  ])(
+    "F4 CEN-10: POST /api/matches rejects invalid rule toggles (%s)",
+    async (_label, ruleToggles) => {
+      const response = await request(httpServerOf(app))
+        .post("/api/matches")
+        .send({ ...createBody, config: { ...createBody.config, ruleToggles } });
 
-    expect(response.status).toBe(400);
-  });
+      expect(response.status).toBe(400);
+    },
+  );
 
   it("F4 CEN-12: a match persisted before rule toggles is read with every rule off", async () => {
     const server = httpServerOf(app);
@@ -437,10 +492,15 @@ describe("Matches API (e2e)", () => {
     const created = viewOf(
       await request(server)
         .post("/api/matches")
-        .send({ config: { ...createBody.config, teamSize: 5 }, playerNames: names }),
+        .send({
+          config: { ...createBody.config, teamSize: 5 },
+          playerNames: names,
+        }),
     );
     const prisma = app.get(PrismaService);
-    const row = await prisma.match.findUniqueOrThrow({ where: { code: created.code } });
+    const row = await prisma.match.findUniqueOrThrow({
+      where: { code: created.code },
+    });
     const snapshot = row.snapshot as Prisma.JsonObject;
     const { ruleToggles: _dropped, ...legacyConfig } = snapshot.config as Prisma.JsonObject;
     await prisma.match.update({
@@ -449,7 +509,9 @@ describe("Matches API (e2e)", () => {
     });
 
     const fetched = await request(server).get(`/api/matches/${created.code}`);
-    expect(viewOf(fetched).config.ruleToggles).toEqual({ arrivalPriority: false });
+    expect(viewOf(fetched).config.ruleToggles).toEqual({
+      arrivalPriority: false,
+    });
 
     let current = created;
     const queues: string[][] = [];
@@ -470,5 +532,225 @@ describe("Matches API (e2e)", () => {
     const response = await request(httpServerOf(app)).get("/api/docs/");
 
     expect(response.status).toBe(200);
+  });
+
+  it("GET /api/matches/:code/split returns the division once the pelada ends", async () => {
+    const server = httpServerOf(app);
+    const splitCreateBody = {
+      config: {
+        ...createBody.config,
+        split: { enabled: true, hourlyRateCents: 10000, durationMinutes: 120 },
+      },
+      playerNames: createBody.playerNames,
+    };
+    const created = viewOf(await request(server).post("/api/matches").send(splitCreateBody));
+
+    expect(created.config.split).toEqual({
+      enabled: true,
+      hourlyRateCents: 10000,
+      durationMinutes: 120,
+    });
+    expect(created.splitDueAt).toBeNull();
+
+    const started = viewOf(
+      await request(server)
+        .post(`/api/matches/${created.code}/start`)
+        .set("If-Match", String(created.version))
+        .send(),
+    );
+    expect(started.splitDueAt).not.toBeNull();
+
+    const notReady = await request(server).get(`/api/matches/${created.code}/split`);
+    expect(notReady.status).toBe(422);
+    expect(notReady.body).toEqual({ code: "SPLIT_NOT_READY" });
+
+    const ended = viewOf(
+      await request(server)
+        .post(`/api/matches/${created.code}/end`)
+        .set("If-Match", String(started.version))
+        .send(),
+    );
+    expect(ended.splitDueAt).toBe(started.splitDueAt);
+
+    const response = await request(server).get(`/api/matches/${created.code}/split`);
+    expect(response.status).toBe(200);
+    const split = response.body as SplitView;
+    expect(split.totalCents).toBe(20000);
+    expect(split.hourlyRateCents).toBe(10000);
+    expect(split.durationMinutes).toBe(120);
+    expect(split.paidTotalCents).toBe(0);
+    expect(split.remainingCents).toBe(20000);
+    expect(split.payerCount).toBe(4);
+    expect(split.perPersonCents).toBe(5000);
+    expect(split.receivedCount).toBe(0);
+    expect(split.receivedCents).toBe(0);
+    expect(split.pendingCents).toBe(20000);
+    expect(split.dueAt).toBe(started.splitDueAt);
+    expect(split.startedAt).not.toBeNull();
+    expect(split.players).toHaveLength(4);
+    expect(
+      split.players.every((player) => !player.left && player.pays && player.owedCents === 5000),
+    ).toBe(true);
+  });
+
+  it("PUT /api/matches/:code/split/players/:playerId normalizes and recalculates the split", async () => {
+    const server = httpServerOf(app);
+    const splitCreateBody = {
+      config: {
+        ...createBody.config,
+        split: { enabled: true, hourlyRateCents: 10000, durationMinutes: 120 },
+      },
+      playerNames: createBody.playerNames,
+    };
+    const created = viewOf(await request(server).post("/api/matches").send(splitCreateBody));
+    const started = viewOf(
+      await request(server)
+        .post(`/api/matches/${created.code}/start`)
+        .set("If-Match", String(created.version))
+        .send(),
+    );
+    await request(server)
+      .post(`/api/matches/${created.code}/end`)
+      .set("If-Match", String(started.version))
+      .send();
+
+    const before = (await request(server).get(`/api/matches/${created.code}/split`))
+      .body as SplitView;
+    const duda = before.players.find((player) => player.name === "Duda");
+    if (duda === undefined) {
+      throw new Error("missing player");
+    }
+
+    const paid = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, paidCents: 500, received: false });
+    expect(paid.status).toBe(200);
+    const paidSplit = paid.body as SplitView;
+    expect(paidSplit.players.find((player) => player.id === duda.id)?.paidCents).toBe(0);
+    expect(paidSplit.perPersonCents).toBe(5000);
+
+    const unmarked = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: false, paidCents: 0, received: true });
+    expect(unmarked.status).toBe(200);
+    const unmarkedSplit = unmarked.body as SplitView;
+    const row = unmarkedSplit.players.find((player) => player.id === duda.id);
+    expect(row?.pays).toBe(false);
+    expect(row?.received).toBe(false);
+    expect(unmarkedSplit.payerCount).toBe(3);
+    expect(unmarkedSplit.perPersonCents).toBe(6667);
+
+    const ghost = await request(server)
+      .put(`/api/matches/${created.code}/split/players/ghost`)
+      .send({ pays: false, paidCents: 0, received: false });
+    expect(ghost.status).toBe(422);
+    expect(ghost.body).toEqual({ code: "PLAYER_NOT_FOUND" });
+  });
+
+  it("the split reflects a departed player with an already paid value", async () => {
+    const server = httpServerOf(app);
+    const playerNames = Array.from({ length: 11 }, (_, index) => `p${index + 1}`);
+    const created = viewOf(
+      await request(server)
+        .post("/api/matches")
+        .send({
+          config: {
+            ...createBody.config,
+            teamSize: 5,
+            split: {
+              enabled: true,
+              hourlyRateCents: 10000,
+              durationMinutes: 120,
+            },
+          },
+          playerNames,
+        }),
+    );
+    const started = viewOf(
+      await request(server)
+        .post(`/api/matches/${created.code}/start`)
+        .set("If-Match", String(created.version))
+        .send(),
+    );
+    const leaver = started.queue[0]?.id;
+    if (leaver === undefined) {
+      throw new Error("missing queue player");
+    }
+    const afterLeave = viewOf(
+      await request(server)
+        .delete(`/api/matches/${created.code}/players/${leaver}`)
+        .set("If-Match", String(started.version))
+        .send(),
+    );
+    await request(server)
+      .post(`/api/matches/${created.code}/end`)
+      .set("If-Match", String(afterLeave.version))
+      .send();
+
+    const updated = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${leaver}`)
+      .send({ pays: false, paidCents: 2000, received: false });
+    expect(updated.status).toBe(200);
+    const split = updated.body as SplitView;
+    expect(split.players).toHaveLength(11);
+    const departed = split.players.at(-1);
+    expect(departed?.id).toBe(leaver);
+    expect(departed?.left).toBe(true);
+    expect(split.paidTotalCents).toBe(2000);
+    expect(split.remainingCents).toBe(18000);
+    expect(split.payerCount).toBe(10);
+    expect(split.perPersonCents).toBe(1800);
+  });
+
+  it("split routes follow the 400/404/422 contract", async () => {
+    const server = httpServerOf(app);
+
+    const missing = await request(server).get("/api/matches/ZZZZZZZZ/split");
+    expect(missing.status).toBe(404);
+    expect(missing.body).toEqual({ code: "MATCH_NOT_FOUND" });
+
+    const disabled = viewOf(await request(server).post("/api/matches").send(createBody));
+    await request(server)
+      .post(`/api/matches/${disabled.code}/start`)
+      .set("If-Match", String(disabled.version))
+      .send();
+    const off = await request(server).get(`/api/matches/${disabled.code}/split`);
+    expect(off.status).toBe(422);
+    expect(off.body).toEqual({ code: "SPLIT_DISABLED" });
+
+    const draft = viewOf(
+      await request(server)
+        .post("/api/matches")
+        .send({
+          config: {
+            ...createBody.config,
+            split: {
+              enabled: true,
+              hourlyRateCents: 10000,
+              durationMinutes: 120,
+            },
+          },
+          playerNames: createBody.playerNames,
+        }),
+    );
+    const draftSplit = await request(server).get(`/api/matches/${draft.code}/split`);
+    expect(draftSplit.status).toBe(422);
+    expect(draftSplit.body).toEqual({ code: "INVALID_STATUS" });
+
+    const badBody = await request(server)
+      .put(`/api/matches/${draft.code}/split/players/whatever`)
+      .send({ pays: "yes", paidCents: -1, received: 1 });
+    expect(badBody.status).toBe(400);
+
+    const badConfig = await request(server)
+      .post("/api/matches")
+      .send({
+        config: {
+          ...createBody.config,
+          split: { enabled: true, durationMinutes: 100 },
+        },
+        playerNames: createBody.playerNames,
+      });
+    expect(badConfig.status).toBe(400);
   });
 });

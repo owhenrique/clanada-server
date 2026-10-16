@@ -1,13 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makePlayers } from "./test-fixtures";
 import { DomainError } from "../../shared/errors/domain-error";
-import type {
-  CommandContext,
-  MatchState,
-  Event,
-  Player,
-  MatchConfig,
-} from "./model";
+import type { CommandContext, MatchState, Event, Player, MatchConfig } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { decide, decideStart, decideEnd, applyEvent, replay } from "./engine";
 import { formInitialState } from "./lineup";
@@ -183,13 +177,7 @@ describe("apply-event: um teste por evento", () => {
       teamIds: ["t2", "t3"],
     });
     expect(next.teams.map((t) => t.id)).toEqual(["t2", "t3"]);
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p11",
-      "p10",
-      "p9",
-      "p8",
-      "p7",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p11", "p10", "p9", "p8", "p7"]);
   });
 
   it("PLAYERS_SWAPPED trades the exact positions of the two players", () => {
@@ -199,13 +187,7 @@ describe("apply-event: um teste por evento", () => {
       playerAId: "p0",
       playerBId: "p10",
     });
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p10",
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p10", "p1", "p2", "p3", "p4"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p0", "p11"]);
   });
 
@@ -235,13 +217,7 @@ describe("apply-event: um teste por evento", () => {
       newTeamIds: ["t-new"],
     });
     expect(next.teams.map((t) => t.id)).toEqual(["Q1", "t-new"]);
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
-      "K",
-      "L",
-      "F",
-      "G",
-      "H",
-    ]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["K", "L", "F", "G", "H"]);
     expect(next.queue.map((p) => p.id)).toEqual(["I", "J"]);
     expect(next.teams[0]?.gameStreak).toBe(1);
   });
@@ -259,20 +235,8 @@ describe("apply-event: um teste por evento", () => {
       newTeamIds: ["n0", "n1"],
     });
     expect(next.teams.map((t) => t.id)).toEqual(["t2", "t3", "n0", "n1"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
-      "p5",
-      "p6",
-      "p7",
-      "p8",
-      "p9",
-    ]);
-    expect(next.teams[3]?.players.map((p) => p.id)).toEqual([
-      "p0",
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-    ]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8", "p9"]);
+    expect(next.teams[3]?.players.map((p) => p.id)).toEqual(["p0", "p1", "p2", "p3", "p4"]);
   });
 
   it("PLAYER_JOINED appends to the end of the queue", () => {
@@ -307,18 +271,8 @@ describe("apply-event: um teste por evento", () => {
       newTeamIds: [],
     });
     expect(next.config.teamSize).toBe(4);
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-    ]);
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
-      "p5",
-      "p6",
-      "p7",
-      "p8",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4"]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p10", "p11", "p9"]);
   });
 
@@ -331,12 +285,7 @@ describe("apply-event: um teste por evento", () => {
     });
     expect(next.config.teamSize).toBe(4);
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "tNovo"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
-      "p10",
-      "p11",
-      "p4",
-      "p9",
-    ]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p10", "p11", "p4", "p9"]);
     expect(next.queue).toEqual([]);
   });
 

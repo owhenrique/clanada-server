@@ -1,12 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import {
-  IsBoolean,
-  IsDivisibleBy,
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-} from "class-validator";
+import { IsBoolean, IsDivisibleBy, IsInt, IsOptional, Max, Min } from "class-validator";
 
 export class SplitConfigDto {
   @ApiPropertyOptional({ description: "Padrão: false" })

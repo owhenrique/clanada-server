@@ -25,23 +25,14 @@ export function computeSplit({
   totalCents: number;
   entries: readonly SplitEntry[];
 }): SplitTotals {
-  const paidTotalCents = entries.reduce(
-    (total, entry) => total + entry.paidCents,
-    0,
-  );
+  const paidTotalCents = entries.reduce((total, entry) => total + entry.paidCents, 0);
   const remainingCents = Math.max(0, totalCents - paidTotalCents);
-  const payerCount = entries.filter(
-    (entry) => entry.pays && entry.paidCents === 0,
-  ).length;
-  const perPersonCents =
-    payerCount === 0 ? 0 : Math.ceil(remainingCents / payerCount);
+  const payerCount = entries.filter((entry) => entry.pays && entry.paidCents === 0).length;
+  const perPersonCents = payerCount === 0 ? 0 : Math.ceil(remainingCents / payerCount);
   return { paidTotalCents, remainingCents, payerCount, perPersonCents };
 }
 
-export function splitDueAtMs(
-  startedAtMs: number,
-  durationMinutes: number,
-): number {
+export function splitDueAtMs(startedAtMs: number, durationMinutes: number): number {
   return startedAtMs + (durationMinutes / 2) * 60_000;
 }
 
@@ -56,9 +47,7 @@ function recordNames(event: Event, names: Map<string, string>): void {
   }
 }
 
-export function projectDepartedPlayers(
-  events: readonly HistoryEvent[],
-): DepartedPlayer[] {
+export function projectDepartedPlayers(events: readonly HistoryEvent[]): DepartedPlayer[] {
   const names = new Map<string, string>();
   const departed: DepartedPlayer[] = [];
   for (const entry of events) {

@@ -1,9 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { splitDueAtMs, type MatchStatus } from "../../../domain/match";
-import type {
-  StoredEvent,
-  StoredMatch,
-} from "../repositories/matches.repository";
+import type { StoredEvent, StoredMatch } from "../repositories/matches.repository";
 import { MatchConfigViewDto } from "../dto/match-config.dto";
 import { findMatchStartedAt } from "./split-view";
 import { findUndoableTarget } from "./undoable-target";
@@ -90,20 +87,14 @@ export function toMatchView(
     teams: stored.snapshot.teams,
     queue: stored.snapshot.queue,
     timer: {
-      startedAt:
-        stored.timer.startedAt === null
-          ? null
-          : stored.timer.startedAt.toISOString(),
+      startedAt: stored.timer.startedAt === null ? null : stored.timer.startedAt.toISOString(),
       elapsedMs: stored.timer.elapsedMs,
     },
     serverNow: now.toISOString(),
-    canUndo:
-      stored.status === "ACTIVE" && findUndoableTarget(activeEvents) !== -1,
+    canUndo: stored.status === "ACTIVE" && findUndoableTarget(activeEvents) !== -1,
     splitDueAt:
       split.enabled && startedAt !== null
-        ? new Date(
-            splitDueAtMs(startedAt.getTime(), split.durationMinutes),
-          ).toISOString()
+        ? new Date(splitDueAtMs(startedAt.getTime(), split.durationMinutes)).toISOString()
         : null,
   };
 }

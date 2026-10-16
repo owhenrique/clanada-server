@@ -88,12 +88,7 @@ describe("CEN-3: applyGameResult — fechadas", () => {
     );
     const next = applyGameResult(state, "t0", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t1", "t2", "t3", "t0"]);
-    expect(next.teams.map((t) => t.color)).toEqual([
-      "vermelho",
-      "azul",
-      "verde",
-      null,
-    ]);
+    expect(next.teams.map((t) => t.color)).toEqual(["vermelho", "azul", "verde", null]);
   });
 
   it("only two teams and no queue: they replay", () => {
@@ -147,13 +142,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
     );
     const next = applyGameResult(state, "t1", () => "new");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t2", "new"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
-      "p15",
-      "p16",
-      "p5",
-      "p6",
-      "p7",
-    ]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p15", "p16", "p5", "p6", "p7"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p8", "p9"]);
   });
 
@@ -173,13 +162,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
     expect(next.teams).toHaveLength(2);
     expect(next.teams[0]?.id).toBe("t0");
     expect(next.teams[1]?.id).toBe("new");
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
-      "p10",
-      "p11",
-      "p5",
-      "p6",
-      "p7",
-    ]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p10", "p11", "p5", "p6", "p7"]);
     expect(next.teams[1]?.color).toBe("vermelho");
     expect(next.queue.map((p) => p.id)).toEqual(["p8", "p9"]);
   });
@@ -204,11 +187,7 @@ describe("CEN-2: applyGameResult — abertas", () => {
 
     const next = applyGameResult(state, "t0", idGen());
 
-    expect(next.teams.map((t) => t.color)).toEqual([
-      "vermelho",
-      "azul",
-      "amarelo",
-    ]);
+    expect(next.teams.map((t) => t.color)).toEqual(["vermelho", "azul", "amarelo"]);
   });
 
   it("recycles the just-freed bib only once every never-used color is taken", () => {
@@ -282,12 +261,7 @@ describe("CEN-4: resolveDraw — penalties", () => {
 describe("CEN-5: resolveDraw — swap", () => {
   it("the next two teams enter and the leavers reform at the back", () => {
     const state = mkState(
-      [
-        mkTeam("t0", null, 0),
-        mkTeam("t1", null, 0),
-        mkTeam("t2", null, 0),
-        mkTeam("t3", null, 0),
-      ],
+      [mkTeam("t0", null, 0), mkTeam("t1", null, 0), mkTeam("t2", null, 0), mkTeam("t3", null, 0)],
       [],
       ["verde", "vermelho", "azul"],
     );
@@ -296,12 +270,7 @@ describe("CEN-5: resolveDraw — swap", () => {
     if (outcome.type !== "swap") {
       return;
     }
-    expect(outcome.state.teams.map((t) => t.id)).toEqual([
-      "t2",
-      "t3",
-      "n0",
-      "n1",
-    ]);
+    expect(outcome.state.teams.map((t) => t.id)).toEqual(["t2", "t3", "n0", "n1"]);
     expect(outcome.state.teams[2]?.players.map((p) => p.id)).toEqual([
       "t0-0",
       "t0-1",
@@ -321,12 +290,7 @@ describe("CEN-5: resolveDraw — swap", () => {
 
   it("draws which of the two leaving teams reforms first", () => {
     const state = mkState(
-      [
-        mkTeam("t0", null, 0),
-        mkTeam("t1", null, 0),
-        mkTeam("t2", null, 0),
-        mkTeam("t3", null, 0),
-      ],
+      [mkTeam("t0", null, 0), mkTeam("t1", null, 0), mkTeam("t2", null, 0), mkTeam("t3", null, 0)],
       [],
       ["verde", "vermelho", "azul"],
     );
@@ -357,13 +321,7 @@ describe("CEN-5: resolveDraw — swap", () => {
     if (outcome.type !== "swap") {
       return;
     }
-    expect(outcome.state.teams.map((t) => t.id)).toEqual([
-      "t2",
-      "t3",
-      "t4",
-      "n0",
-      "n1",
-    ]);
+    expect(outcome.state.teams.map((t) => t.id)).toEqual(["t2", "t3", "t4", "n0", "n1"]);
     expect(outcome.state.teams.map((t) => t.color)).toEqual([
       "azul",
       "verde",
@@ -376,12 +334,7 @@ describe("CEN-5: resolveDraw — swap", () => {
 
   it("does not mutate the input state", () => {
     const state = mkState(
-      [
-        mkTeam("t0", null, 3),
-        mkTeam("t1", null, 1),
-        mkTeam("t2", null, 0),
-        mkTeam("t3", null, 0),
-      ],
+      [mkTeam("t0", null, 3), mkTeam("t1", null, 1), mkTeam("t2", null, 0), mkTeam("t3", null, 0)],
       [],
       ["verde", "vermelho", "azul"],
     );
@@ -415,11 +368,7 @@ describe("CEN-9/CEN-10: decideWin", () => {
 
   it("CEN-9: with a queue, records the ids of the newly formed team", () => {
     const state = activeState(12, ["verde", "vermelho", "azul"]);
-    const result = decideWin(
-      state,
-      { type: "win", loserTeamId: "t1" },
-      ctx(idGen()),
-    );
+    const result = decideWin(state, { type: "win", loserTeamId: "t1" }, ctx(idGen()));
     if (!("event" in result) || result.event.type !== "GAME_WON") {
       throw new Error("expected a GAME_WON event");
     }
@@ -429,11 +378,7 @@ describe("CEN-9/CEN-10: decideWin", () => {
 
   it("without a queue, records no new team ids", () => {
     const state = activeState(10, ["verde", "vermelho"]);
-    const result = decideWin(
-      state,
-      { type: "win", loserTeamId: "t1" },
-      ctx(idGen()),
-    );
+    const result = decideWin(state, { type: "win", loserTeamId: "t1" }, ctx(idGen()));
     if (!("event" in result) || result.event.type !== "GAME_WON") {
       throw new Error("expected a GAME_WON event");
     }
@@ -491,12 +436,7 @@ describe("CEN-11/CEN-12: decideDraw", () => {
   });
 
   it("CEN-12: with a swap, records who leaves first and the new team ids", () => {
-    const state = mkState([
-      fullTeam("t0"),
-      fullTeam("t1"),
-      fullTeam("t2"),
-      fullTeam("t3"),
-    ]);
+    const state = mkState([fullTeam("t0"), fullTeam("t1"), fullTeam("t2"), fullTeam("t3")]);
     const low = decideDraw(
       state,
       { type: "draw" },
@@ -542,11 +482,7 @@ describe("CEN-13: decidePenalties", () => {
       ),
       status: "ACTIVE" as const,
     };
-    const result = decidePenalties(
-      state,
-      { type: "penalties", loserTeamId: "t1" },
-      ctx,
-    );
+    const result = decidePenalties(state, { type: "penalties", loserTeamId: "t1" }, ctx);
     if (!("event" in result)) {
       throw new Error("expected an event");
     }

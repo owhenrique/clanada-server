@@ -65,13 +65,7 @@ describe("CEN-6: playerJoins completing the queue into a new team", () => {
     const withQueue = { ...state, queue: makePlayers(14).slice(10) };
     const next = playerJoins(withQueue, mkPlayer("pX"), () => "tNovo");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "tNovo"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
-      "p10",
-      "p11",
-      "p12",
-      "p13",
-      "pX",
-    ]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p10", "p11", "p12", "p13", "pX"]);
     expect(next.teams[2]?.color).toBeNull();
     expect(next.queue).toEqual([]);
   });
@@ -140,13 +134,7 @@ describe("CEN-6: playerLeaves", () => {
       teamId,
     );
     const next = playerLeaves(state, "p0");
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-      "p10",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4", "p10"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p11"]);
   });
 
@@ -164,20 +152,8 @@ describe("CEN-6: playerLeaves", () => {
     );
     const next = playerLeaves(state, "p0");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-      "p10",
-    ]);
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
-      "p5",
-      "p6",
-      "p7",
-      "p8",
-      "p9",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4", "p10"]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8", "p9"]);
     expect(next.teams[1]?.color).toBe("vermelho");
     expect(next.queue.map((p) => p.id)).toEqual(["p11", "p12", "p13", "p14"]);
   });
@@ -196,13 +172,7 @@ describe("CEN-6: playerLeaves", () => {
     );
     const next = playerLeaves(state, "p15");
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1", "t3"]);
-    expect(next.teams[2]?.players.map((p) => p.id)).toEqual([
-      "p16",
-      "p17",
-      "p18",
-      "p19",
-      "p10",
-    ]);
+    expect(next.teams[2]?.players.map((p) => p.id)).toEqual(["p16", "p17", "p18", "p19", "p10"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p11", "p12", "p13", "p14"]);
   });
 
@@ -240,18 +210,8 @@ describe("CEN-4: playerLeavesWithReducedTeamSize", () => {
     const next = playerLeavesWithReducedTeamSize(state, "p0", () => "tNovo");
     expect(next.config.teamSize).toBe(4);
     expect(next.teams.map((t) => t.id)).toEqual(["t0", "t1"]);
-    expect(next.teams[0]?.players.map((p) => p.id)).toEqual([
-      "p1",
-      "p2",
-      "p3",
-      "p4",
-    ]);
-    expect(next.teams[1]?.players.map((p) => p.id)).toEqual([
-      "p5",
-      "p6",
-      "p7",
-      "p8",
-    ]);
+    expect(next.teams[0]?.players.map((p) => p.id)).toEqual(["p1", "p2", "p3", "p4"]);
+    expect(next.teams[1]?.players.map((p) => p.id)).toEqual(["p5", "p6", "p7", "p8"]);
     expect(next.queue.map((p) => p.id)).toEqual(["p9"]);
   });
 
@@ -345,10 +305,7 @@ describe("CEN-6: decideJoin completing the queue", () => {
   });
 });
 
-function activeState(
-  count: number,
-  colors: string[] = ["verde", "vermelho", "azul"],
-): MatchState {
+function activeState(count: number, colors: string[] = ["verde", "vermelho", "azul"]): MatchState {
   const state = formInitialState(
     makePlayers(count),
     {
@@ -363,21 +320,14 @@ function activeState(
   return { ...state, status: "ACTIVE" };
 }
 
-function ctx(
-  timerRunning: boolean,
-  nextId: () => string = () => "unused",
-): CommandContext {
+function ctx(timerRunning: boolean, nextId: () => string = () => "unused"): CommandContext {
   return { random: () => 0, nextId, timerRunning };
 }
 
 describe("CEN-15/CEN-16/CEN-17: decideLeave", () => {
   it("CEN-15: produces PLAYER_LEFT with fallback none and no new teams", () => {
     const state = activeState(15);
-    const result = decideLeave(
-      state,
-      { type: "leave", playerId: "p0" },
-      ctx(false),
-    );
+    const result = decideLeave(state, { type: "leave", playerId: "p0" }, ctx(false));
     if (!("event" in result)) {
       throw new Error("expected an event");
     }
@@ -411,11 +361,7 @@ describe("CEN-15/CEN-16/CEN-17: decideLeave", () => {
 
   it("does not lock an off-field player who still has a donor available", () => {
     const state = activeState(20, ["verde", "vermelho", "azul", "amarelo"]);
-    const result = decideLeave(
-      state,
-      { type: "leave", playerId: "p10" },
-      ctx(true),
-    );
+    const result = decideLeave(state, { type: "leave", playerId: "p10" }, ctx(true));
     expect("event" in result).toBe(true);
   });
 });

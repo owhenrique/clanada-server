@@ -1,14 +1,6 @@
-import {
-  BadRequestException,
-  type ArgumentsHost,
-  type LoggerService,
-} from "@nestjs/common";
+import { BadRequestException, type ArgumentsHost, type LoggerService } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
-import {
-  DomainError,
-  VersionConflictError,
-  type DomainErrorCode,
-} from "./domain-error";
+import { DomainError, VersionConflictError, type DomainErrorCode } from "./domain-error";
 import { DomainExceptionFilter } from "./domain-exception.filter";
 
 type MockHost = {
@@ -109,10 +101,7 @@ describe("DomainExceptionFilter", () => {
     const filter = new DomainExceptionFilter();
     const { host, status, json } = createMockHost();
 
-    filter.catch(
-      new BadRequestException("If-Match header must be a non-negative integer"),
-      host,
-    );
+    filter.catch(new BadRequestException("If-Match header must be a non-negative integer"), host);
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({
@@ -167,16 +156,11 @@ describe("DomainExceptionFilter", () => {
 
     filter.catch(new Error("secret internal detail"), host);
 
-    expect(JSON.stringify(json.mock.calls)).not.toContain(
-      "secret internal detail",
-    );
+    expect(JSON.stringify(json.mock.calls)).not.toContain("secret internal detail");
   });
 
   it.each([
-    [
-      "Prisma P1001",
-      Object.assign(new Error("Can't reach database"), { code: "P1001" }),
-    ],
+    ["Prisma P1001", Object.assign(new Error("Can't reach database"), { code: "P1001" })],
     [
       "ECONNREFUSED",
       Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), {

@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  projectGameHistory,
-  type GameRecord,
-  type HistoryEvent,
-} from "./game-history";
+import { projectGameHistory, type GameRecord, type HistoryEvent } from "./game-history";
 import type { Event, MatchConfig, Player } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 
@@ -18,18 +14,12 @@ const config: MatchConfig = {
 const names = ["Ana", "Bia", "Caio", "Duda", "Edu", "Fê", "Gil", "Hugo"];
 
 function makePlayers(count: number): Player[] {
-  return names
-    .slice(0, count)
-    .map((name, index) => ({ id: `p${index}`, name }));
+  return names.slice(0, count).map((name, index) => ({ id: `p${index}`, name }));
 }
 
 const BASE = Date.parse("2026-09-23T23:00:00.000Z");
 
-function history(
-  events: Event[],
-  seqs?: number[],
-  lastCreatedAt?: Date,
-): HistoryEvent[] {
+function history(events: Event[], seqs?: number[], lastCreatedAt?: Date): HistoryEvent[] {
   return events.map((event, index) => ({
     seq: seqs?.[index] ?? index + 1,
     createdAt:
@@ -224,9 +214,7 @@ describe("projectGameHistory", () => {
       [1, 2, 3, 6],
     );
 
-    expect(
-      projectGameHistory(events).map(({ number, seq }) => ({ number, seq })),
-    ).toEqual([
+    expect(projectGameHistory(events).map(({ number, seq }) => ({ number, seq }))).toEqual([
       { number: 1, seq: 3 },
       { number: 2, seq: 6 },
     ]);
@@ -234,9 +222,7 @@ describe("projectGameHistory", () => {
 
   it("CEN-6: returns an empty history when no game was played", () => {
     expect(
-      projectGameHistory(
-        history([...created(6, ["q1", "q2", "q3"]), { type: "MATCH_ENDED" }]),
-      ),
+      projectGameHistory(history([...created(6, ["q1", "q2", "q3"]), { type: "MATCH_ENDED" }])),
     ).toEqual([]);
   });
 });
