@@ -32,5 +32,5 @@ export type { RuleToggles } from "./model";
 export { decodeRuleToggles } from "./model";
 export type { SplitConfig } from "./model";
 export { DEFAULT_SPLIT_CONFIG, decodeSplitConfig, resolveSplitConfig } from "./model";
-export { computeSplit, projectDepartedPlayers, splitDueAtMs } from "./split";
+export { computeSplit, projectDepartedPlayers, receivedLimitCents, splitDueAtMs } from "./split";
 export type { DepartedPlayer, SplitEntry, SplitTotals } from "./split";

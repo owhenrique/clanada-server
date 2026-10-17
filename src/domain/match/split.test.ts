@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 import type { HistoryEvent } from "./game-history";
 import type { Event, MatchConfig, Player } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
-import { computeSplit, projectDepartedPlayers, splitDueAtMs } from "./split";
+import { computeSplit, projectDepartedPlayers, receivedLimitCents, splitDueAtMs } from "./split";
+import type { SplitEntry } from "./split";
 
-function entry(pays: boolean, paidCents: number): { pays: boolean; paidCents: number } {
-  return { pays, paidCents };
+function payer(receivedCents = 0): SplitEntry {
+  return { pays: true, received: receivedCents > 0, receivedCents };
 }
 
-function payers(count: number): { pays: boolean; paidCents: number }[] {
-  return Array.from({ length: count }, () => entry(true, 0));
+function out(): SplitEntry {
+  return { pays: false, received: false, receivedCents: 0 };
+}
+
+function payers(count: number): SplitEntry[] {
+  return Array.from({ length: count }, () => payer());
 }
 
 function historyEvent(seq: number, event: Event): HistoryEvent {
@@ -17,21 +22,68 @@ function historyEvent(seq: number, event: Event): HistoryEvent {
 }
 
 describe("computeSplit", () => {
-  it("splits the total evenly when nobody paid yet", () => {
-    expect(computeSplit({ totalCents: 20000, entries: payers(16) })).toEqual({
-      paidTotalCents: 0,
-      remainingCents: 20000,
+  it("splits the total evenly when nobody received yet", () => {
+    expect(computeSplit({ totalCents: 200000, entries: payers(16) })).toEqual({
+      receivedTotalCents: 0,
+      remainingCents: 200000,
       payerCount: 16,
-      perPersonCents: 1250,
+      pendingCount: 16,
+      perPersonCents: 12500,
     });
   });
 
-  it("rounds the share up when the division leaves a remainder", () => {
-    expect(computeSplit({ totalCents: 20000, entries: payers(15) })).toEqual({
-      paidTotalCents: 0,
-      remainingCents: 20000,
+  it("redistributes the share of someone out of the division", () => {
+    expect(computeSplit({ totalCents: 200000, entries: [...payers(15), out()] })).toEqual({
+      receivedTotalCents: 0,
+      remainingCents: 200000,
       payerCount: 15,
-      perPersonCents: 1334,
+      pendingCount: 15,
+      perPersonCents: 13334,
+    });
+  });
+
+  it("discounts a partial receipt and divides it among the remaining pending players", () => {
+    expect(
+      computeSplit({
+        totalCents: 200000,
+        entries: [...payers(15), payer(10000)],
+      }),
+    ).toEqual({
+      receivedTotalCents: 10000,
+      remainingCents: 190000,
+      payerCount: 16,
+      pendingCount: 15,
+      perPersonCents: 12667,
+    });
+  });
+
+  it("counts the full amount when someone receives more than the share", () => {
+    expect(
+      computeSplit({
+        totalCents: 200000,
+        entries: [...payers(15), payer(15000)],
+      }),
+    ).toEqual({
+      receivedTotalCents: 15000,
+      remainingCents: 185000,
+      payerCount: 16,
+      pendingCount: 15,
+      perPersonCents: 12334,
+    });
+  });
+
+  it("returns zero per person when everybody received", () => {
+    expect(
+      computeSplit({
+        totalCents: 20000,
+        entries: [payer(10000), payer(10000)],
+      }),
+    ).toEqual({
+      receivedTotalCents: 20000,
+      remainingCents: 0,
+      payerCount: 2,
+      pendingCount: 0,
+      perPersonCents: 0,
     });
   });
 
@@ -39,55 +91,14 @@ describe("computeSplit", () => {
     expect(
       computeSplit({
         totalCents: 20000,
-        entries: [entry(false, 0), entry(false, 0)],
+        entries: [out(), out()],
       }),
     ).toEqual({
-      paidTotalCents: 0,
+      receivedTotalCents: 0,
       remainingCents: 20000,
       payerCount: 0,
+      pendingCount: 0,
       perPersonCents: 0,
-    });
-  });
-
-  it("discounts what was already paid and divides it among those who still pay", () => {
-    expect(
-      computeSplit({
-        totalCents: 3000,
-        entries: [entry(true, 1000), entry(true, 1000), entry(true, 0)],
-      }),
-    ).toEqual({
-      paidTotalCents: 2000,
-      remainingCents: 1000,
-      payerCount: 1,
-      perPersonCents: 1000,
-    });
-  });
-
-  it("discounts the paid value of an unmarked player", () => {
-    expect(
-      computeSplit({
-        totalCents: 20000,
-        entries: [...payers(15), entry(false, 2000)],
-      }),
-    ).toEqual({
-      paidTotalCents: 2000,
-      remainingCents: 18000,
-      payerCount: 15,
-      perPersonCents: 1200,
-    });
-  });
-
-  it("absorbs the share of someone unmarked with nothing paid", () => {
-    expect(
-      computeSplit({
-        totalCents: 20000,
-        entries: [...payers(14), entry(false, 0)],
-      }),
-    ).toEqual({
-      paidTotalCents: 0,
-      remainingCents: 20000,
-      payerCount: 14,
-      perPersonCents: 1429,
     });
   });
 
@@ -95,14 +106,37 @@ describe("computeSplit", () => {
     expect(
       computeSplit({
         totalCents: 20000,
-        entries: [...payers(15), entry(true, 25000)],
+        entries: [payer(15000), payer(15000)],
       }),
     ).toEqual({
-      paidTotalCents: 25000,
+      receivedTotalCents: 30000,
       remainingCents: 0,
-      payerCount: 15,
+      payerCount: 2,
+      pendingCount: 0,
       perPersonCents: 0,
     });
+  });
+
+  it("rounds the share up to at least one cent", () => {
+    expect(computeSplit({ totalCents: 2, entries: payers(3) })).toEqual({
+      receivedTotalCents: 0,
+      remainingCents: 2,
+      payerCount: 3,
+      pendingCount: 3,
+      perPersonCents: 1,
+    });
+  });
+});
+
+describe("receivedLimitCents", () => {
+  it("adds what the player already received to the pending total", () => {
+    expect(receivedLimitCents(12500, 12500)).toBe(25000);
+    expect(receivedLimitCents(0, 20000)).toBe(20000);
+  });
+
+  it("keeps only the current value when nothing is pending anymore", () => {
+    expect(receivedLimitCents(12500, 0)).toBe(12500);
+    expect(receivedLimitCents(25000, 0)).toBe(25000);
   });
 });
 

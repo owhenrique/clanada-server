@@ -1,10 +1,13 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { computeSplit, projectDepartedPlayers, splitDueAtMs } from "../../../domain/match";
-import type {
-  MatchSplitPlayerState,
-  StoredEvent,
-  StoredMatch,
-} from "../repositories/matches.repository";
+import type { SplitEntry } from "../../../domain/match";
+import type { StoredEvent, StoredMatch } from "../repositories/matches.repository";
+
+export type SplitEntryInput = {
+  pays: boolean;
+  receivedCents?: number;
+  received?: boolean;
+};
 
 export class SplitPlayerView {
   @ApiProperty()
@@ -19,8 +22,11 @@ export class SplitPlayerView {
   @ApiProperty()
   pays!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ deprecated: true, description: "Legado; sempre 0" })
   paidCents!: number;
+
+  @ApiProperty()
+  receivedCents!: number;
 
   @ApiProperty()
   received!: boolean;
@@ -39,7 +45,7 @@ export class SplitView {
   @ApiProperty()
   durationMinutes!: number;
 
-  @ApiProperty()
+  @ApiProperty({ deprecated: true, description: "Legado; sempre 0" })
   paidTotalCents!: number;
 
   @ApiProperty()
@@ -47,6 +53,9 @@ export class SplitView {
 
   @ApiProperty()
   payerCount!: number;
+
+  @ApiProperty()
+  pendingCount!: number;
 
   @ApiProperty()
   perPersonCents!: number;
@@ -105,35 +114,33 @@ export function toSplitView(stored: StoredMatch, activeEvents: readonly StoredEv
   ];
   const state = rows.map((row) => {
     const override = overrides[row.id];
+    const pays = override?.pays ?? true;
+    const receivedCents = override?.receivedCents ?? 0;
     return {
       id: row.id,
       name: row.name,
       left: row.left,
-      pays: override?.pays ?? true,
-      paidCents: override?.paidCents ?? 0,
-      received: override?.received ?? false,
+      pays,
+      received: pays && receivedCents > 0,
+      receivedCents,
     };
   });
 
   const totals = computeSplit({ totalCents, entries: state });
   const receivedCount = state.filter((entry) => entry.received).length;
-  const receivedCents = Math.min(
-    totalCents,
-    totals.paidTotalCents + receivedCount * totals.perPersonCents,
-  );
-  const pendingCents = Math.max(0, totals.remainingCents - receivedCount * totals.perPersonCents);
 
   return {
     totalCents,
     hourlyRateCents: config.hourlyRateCents,
     durationMinutes: config.durationMinutes,
-    paidTotalCents: totals.paidTotalCents,
+    paidTotalCents: 0,
     remainingCents: totals.remainingCents,
     payerCount: totals.payerCount,
+    pendingCount: totals.pendingCount,
     perPersonCents: totals.perPersonCents,
     receivedCount,
-    receivedCents,
-    pendingCents,
+    receivedCents: totals.receivedTotalCents,
+    pendingCents: totals.remainingCents,
     startedAt: startedAt === null ? null : startedAt.toISOString(),
     dueAt: dueAtMs === null ? null : new Date(dueAtMs).toISOString(),
     players: state.map((entry) => ({
@@ -141,9 +148,10 @@ export function toSplitView(stored: StoredMatch, activeEvents: readonly StoredEv
       name: entry.name,
       left: entry.left,
       pays: entry.pays,
-      paidCents: entry.paidCents,
+      paidCents: 0,
+      receivedCents: entry.receivedCents,
       received: entry.received,
-      owedCents: entry.pays && entry.paidCents === 0 && !entry.received ? totals.perPersonCents : 0,
+      owedCents: entry.pays && !entry.received ? totals.perPersonCents : 0,
     })),
   };
 }
@@ -159,10 +167,18 @@ export function splitRosterIds(
   return ids;
 }
 
-export function normalizeSplitEntry(input: MatchSplitPlayerState): MatchSplitPlayerState {
-  return {
-    pays: input.pays,
-    paidCents: input.pays ? 0 : input.paidCents,
-    received: input.pays ? input.received : false,
-  };
+export function normalizeSplitEntry(input: SplitEntryInput): SplitEntry {
+  if (!input.pays) {
+    return { pays: false, received: false, receivedCents: 0 };
+  }
+  const receivedCents = Math.max(0, Math.trunc(input.receivedCents ?? 0));
+  return { pays: true, received: receivedCents > 0, receivedCents };
+}
+
+export function splitEntryFromInput(
+  input: SplitEntryInput,
+  legacyPerPersonCents: number,
+): SplitEntry {
+  const receivedCents = input.receivedCents ?? (input.received === true ? legacyPerPersonCents : 0);
+  return normalizeSplitEntry({ pays: input.pays, receivedCents });
 }

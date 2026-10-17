@@ -581,6 +581,7 @@ describe("Matches API (e2e)", () => {
     expect(split.paidTotalCents).toBe(0);
     expect(split.remainingCents).toBe(20000);
     expect(split.payerCount).toBe(4);
+    expect(split.pendingCount).toBe(4);
     expect(split.perPersonCents).toBe(5000);
     expect(split.receivedCount).toBe(0);
     expect(split.receivedCents).toBe(0);
@@ -589,7 +590,15 @@ describe("Matches API (e2e)", () => {
     expect(split.startedAt).not.toBeNull();
     expect(split.players).toHaveLength(4);
     expect(
-      split.players.every((player) => !player.left && player.pays && player.owedCents === 5000),
+      split.players.every(
+        (player) =>
+          !player.left &&
+          player.pays &&
+          !player.received &&
+          player.receivedCents === 0 &&
+          player.paidCents === 0 &&
+          player.owedCents === 5000,
+      ),
     ).toBe(true);
   });
 
@@ -621,13 +630,92 @@ describe("Matches API (e2e)", () => {
       throw new Error("missing player");
     }
 
-    const paid = await request(server)
+    const aboveTotal = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 20001 });
+    expect(aboveTotal.status).toBe(422);
+    expect(aboveTotal.body).toEqual({ code: "SPLIT_VALUE_EXCEEDS_TOTAL" });
+
+    const atTotal = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 20000 });
+    expect(atTotal.status).toBe(200);
+    const atTotalSplit = atTotal.body as SplitView;
+    expect(atTotalSplit.players.find((player) => player.id === duda.id)).toMatchObject({
+      received: true,
+      receivedCents: 20000,
+      owedCents: 0,
+    });
+    expect(atTotalSplit.receivedCents).toBe(20000);
+    expect(atTotalSplit.pendingCount).toBe(3);
+    expect(atTotalSplit.pendingCents).toBe(0);
+
+    const legacyPaid = await request(server)
       .put(`/api/matches/${created.code}/split/players/${duda.id}`)
       .send({ pays: true, paidCents: 500, received: false });
-    expect(paid.status).toBe(200);
-    const paidSplit = paid.body as SplitView;
-    expect(paidSplit.players.find((player) => player.id === duda.id)?.paidCents).toBe(0);
-    expect(paidSplit.perPersonCents).toBe(5000);
+    expect(legacyPaid.status).toBe(200);
+    const legacyPaidSplit = legacyPaid.body as SplitView;
+    expect(legacyPaidSplit.players.find((player) => player.id === duda.id)).toMatchObject({
+      pays: true,
+      received: false,
+      receivedCents: 0,
+      paidCents: 0,
+      owedCents: 5000,
+    });
+    expect(legacyPaidSplit.paidTotalCents).toBe(0);
+    expect(legacyPaidSplit.receivedCents).toBe(0);
+    expect(legacyPaidSplit.payerCount).toBe(4);
+    expect(legacyPaidSplit.perPersonCents).toBe(5000);
+
+    const underpaid = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 1000 });
+    expect(underpaid.status).toBe(200);
+    const underpaidSplit = underpaid.body as SplitView;
+    expect(underpaidSplit.players.find((player) => player.id === duda.id)).toMatchObject({
+      pays: true,
+      received: true,
+      receivedCents: 1000,
+      owedCents: 0,
+    });
+    expect(underpaidSplit.receivedCents).toBe(1000);
+    expect(underpaidSplit.receivedCount).toBe(1);
+    expect(underpaidSplit.pendingCount).toBe(3);
+    expect(underpaidSplit.pendingCents).toBe(19000);
+    expect(underpaidSplit.perPersonCents).toBe(6334);
+
+    const overpaid = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 15000 });
+    expect(overpaid.status).toBe(200);
+    const overpaidSplit = overpaid.body as SplitView;
+    expect(overpaidSplit.players.find((player) => player.id === duda.id)?.receivedCents).toBe(15000);
+    expect(overpaidSplit.receivedCents).toBe(15000);
+    expect(overpaidSplit.pendingCents).toBe(5000);
+    expect(overpaidSplit.perPersonCents).toBe(1667);
+
+    const cleared = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, receivedCents: 0 });
+    expect(cleared.status).toBe(200);
+    expect(
+      (cleared.body as SplitView).players.find((player) => player.id === duda.id),
+    ).toMatchObject({ received: false, receivedCents: 0, owedCents: 5000 });
+
+    const legacyReceived = await request(server)
+      .put(`/api/matches/${created.code}/split/players/${duda.id}`)
+      .send({ pays: true, received: true });
+    expect(legacyReceived.status).toBe(200);
+    const legacyReceivedSplit = legacyReceived.body as SplitView;
+    expect(legacyReceivedSplit.players.find((player) => player.id === duda.id)).toMatchObject({
+      received: true,
+      receivedCents: 5000,
+      owedCents: 0,
+    });
+    expect(legacyReceivedSplit.receivedCents).toBe(5000);
+    expect(legacyReceivedSplit.remainingCents).toBe(15000);
+    expect(legacyReceivedSplit.pendingCount).toBe(3);
+    expect(legacyReceivedSplit.perPersonCents).toBe(5000);
 
     const unmarked = await request(server)
       .put(`/api/matches/${created.code}/split/players/${duda.id}`)
@@ -635,9 +723,16 @@ describe("Matches API (e2e)", () => {
     expect(unmarked.status).toBe(200);
     const unmarkedSplit = unmarked.body as SplitView;
     const row = unmarkedSplit.players.find((player) => player.id === duda.id);
-    expect(row?.pays).toBe(false);
-    expect(row?.received).toBe(false);
+    expect(row).toMatchObject({
+      pays: false,
+      received: false,
+      receivedCents: 0,
+      paidCents: 0,
+      owedCents: 0,
+    });
     expect(unmarkedSplit.payerCount).toBe(3);
+    expect(unmarkedSplit.receivedCents).toBe(0);
+    expect(unmarkedSplit.pendingCount).toBe(3);
     expect(unmarkedSplit.perPersonCents).toBe(6667);
 
     const ghost = await request(server)
@@ -647,7 +742,7 @@ describe("Matches API (e2e)", () => {
     expect(ghost.body).toEqual({ code: "PLAYER_NOT_FOUND" });
   });
 
-  it("the split reflects a departed player with an already paid value", async () => {
+  it("a player outside the division has no value and their share is redistributed", async () => {
     const server = httpServerOf(app);
     const playerNames = Array.from({ length: 11 }, (_, index) => `p${index + 1}`);
     const created = viewOf(
@@ -694,12 +789,21 @@ describe("Matches API (e2e)", () => {
     const split = updated.body as SplitView;
     expect(split.players).toHaveLength(11);
     const departed = split.players.at(-1);
-    expect(departed?.id).toBe(leaver);
-    expect(departed?.left).toBe(true);
-    expect(split.paidTotalCents).toBe(2000);
-    expect(split.remainingCents).toBe(18000);
+    expect(departed).toMatchObject({
+      id: leaver,
+      left: true,
+      pays: false,
+      received: false,
+      receivedCents: 0,
+      paidCents: 0,
+      owedCents: 0,
+    });
+    expect(split.paidTotalCents).toBe(0);
+    expect(split.receivedCents).toBe(0);
+    expect(split.remainingCents).toBe(20000);
     expect(split.payerCount).toBe(10);
-    expect(split.perPersonCents).toBe(1800);
+    expect(split.pendingCount).toBe(10);
+    expect(split.perPersonCents).toBe(2000);
   });
 
   it("split routes follow the 400/404/422 contract", async () => {
@@ -741,6 +845,16 @@ describe("Matches API (e2e)", () => {
       .put(`/api/matches/${draft.code}/split/players/whatever`)
       .send({ pays: "yes", paidCents: -1, received: 1 });
     expect(badBody.status).toBe(400);
+
+    const negativeCents = await request(server)
+      .put(`/api/matches/${draft.code}/split/players/whatever`)
+      .send({ pays: true, receivedCents: -1 });
+    expect(negativeCents.status).toBe(400);
+
+    const oversizedCents = await request(server)
+      .put(`/api/matches/${draft.code}/split/players/whatever`)
+      .send({ pays: true, receivedCents: 1000001 });
+    expect(oversizedCents.status).toBe(400);
 
     const badConfig = await request(server)
       .post("/api/matches")

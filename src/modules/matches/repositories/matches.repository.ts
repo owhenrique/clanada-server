@@ -7,8 +7,8 @@ export type MatchTimer = {
 
 export type MatchSplitPlayerState = {
   pays: boolean;
-  paidCents: number;
   received: boolean;
+  receivedCents: number;
 };
 
 export type MatchSplitState = {

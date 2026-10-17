@@ -3,13 +3,15 @@ import type { Event } from "./model";
 
 export type SplitEntry = {
   pays: boolean;
-  paidCents: number;
+  received: boolean;
+  receivedCents: number;
 };
 
 export type SplitTotals = {
-  paidTotalCents: number;
+  receivedTotalCents: number;
   remainingCents: number;
   payerCount: number;
+  pendingCount: number;
   perPersonCents: number;
 };
 
@@ -25,15 +27,20 @@ export function computeSplit({
   totalCents: number;
   entries: readonly SplitEntry[];
 }): SplitTotals {
-  const paidTotalCents = entries.reduce((total, entry) => total + entry.paidCents, 0);
-  const remainingCents = Math.max(0, totalCents - paidTotalCents);
-  const payerCount = entries.filter((entry) => entry.pays && entry.paidCents === 0).length;
-  const perPersonCents = payerCount === 0 ? 0 : Math.ceil(remainingCents / payerCount);
-  return { paidTotalCents, remainingCents, payerCount, perPersonCents };
+  const receivedTotalCents = entries.reduce((total, entry) => total + entry.receivedCents, 0);
+  const remainingCents = Math.max(0, totalCents - receivedTotalCents);
+  const payerCount = entries.filter((entry) => entry.pays).length;
+  const pendingCount = entries.filter((entry) => entry.pays && !entry.received).length;
+  const perPersonCents = pendingCount === 0 ? 0 : Math.ceil(remainingCents / pendingCount);
+  return { receivedTotalCents, remainingCents, payerCount, pendingCount, perPersonCents };
 }
 
 export function splitDueAtMs(startedAtMs: number, durationMinutes: number): number {
   return startedAtMs + (durationMinutes / 2) * 60_000;
+}
+
+export function receivedLimitCents(receivedCents: number, pendingCents: number): number {
+  return receivedCents + pendingCents;
 }
 
 function recordNames(event: Event, names: Map<string, string>): void {
