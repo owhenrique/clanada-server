@@ -127,3 +127,7 @@ Mudou algum DTO (request/response de rota)? Rode `npm run openapi` e **commite o
 | `npm run typecheck` | `tsc --noEmit`. |
 | `npm run openapi` | Gera `openapi.json` sem subir o servidor HTTP. |
 | `npm run db:migrate` | Aplica migrations do Prisma (`prisma migrate dev`). |
+
+## CI e fluxo de PR
+- `.github/workflows/ci.yml` roda em todo PR e no push na `main`: job `lint` (prisma generate, typecheck, ESLint) e job `tests` (Vitest + e2e com Testcontainers no Docker do runner). Os dois checks são obrigatórios.
+- A `main` é protegida por ruleset: sem push direto (nem admin), só via PR com `lint` e `tests` verdes e branch atualizada; aprovações exigidas = 0, então o autor pode mergear o próprio PR.
