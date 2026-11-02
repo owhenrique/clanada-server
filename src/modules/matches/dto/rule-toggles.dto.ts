@@ -6,9 +6,17 @@ export class RuleTogglesDto {
   @IsOptional()
   @IsBoolean()
   arrivalPriority?: boolean;
+
+  @ApiPropertyOptional({ description: "Padrão: false" })
+  @IsOptional()
+  @IsBoolean()
+  drawKeepsVeteran?: boolean;
 }
 
 export class RuleTogglesViewDto {
   @ApiProperty()
   arrivalPriority!: boolean;
+
+  @ApiProperty()
+  drawKeepsVeteran!: boolean;
 }

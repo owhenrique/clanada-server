@@ -1,13 +1,16 @@
 export type RuleToggles = {
   arrivalPriority: boolean;
+  drawKeepsVeteran: boolean;
 };
 
 export const DEFAULT_RULE_TOGGLES: RuleToggles = {
   arrivalPriority: true,
+  drawKeepsVeteran: false,
 };
 
 export const LEGACY_RULE_TOGGLES: RuleToggles = {
   arrivalPriority: false,
+  drawKeepsVeteran: false,
 };
 
 const RULE_KEYS = Object.keys(DEFAULT_RULE_TOGGLES) as (keyof RuleToggles)[];
@@ -82,6 +85,7 @@ export function decodeSplitConfig(value: unknown): SplitConfig {
 export type Player = {
   id: string;
   name: string;
+  arrival?: number;
 };
 
 export type Team = {
@@ -107,6 +111,7 @@ export type MatchState = {
   config: MatchConfig;
   teams: Team[];
   queue: Player[];
+  veteranTeamId?: string;
 };
 
 export type TeamIdFactory = (index: number) => string;
@@ -144,7 +149,7 @@ export type MatchStartedEvent = { type: "MATCH_STARTED" };
 export type GameWonEvent = {
   type: "GAME_WON";
   loserTeamId: string;
-  decidedBy: "match" | "penalties";
+  decidedBy: "match" | "penalties" | "draw";
   newTeamIds: string[];
   teamNames?: (string | null)[];
 };
@@ -184,6 +189,11 @@ export type SplitEnabledEvent = {
   durationMinutes: number;
 };
 
+export type RulesChangedEvent = {
+  type: "RULES_CHANGED";
+  ruleToggles: RuleToggles;
+};
+
 export type MatchEndedEvent = { type: "MATCH_ENDED" };
 
 export type Event =
@@ -198,6 +208,7 @@ export type Event =
   | PlayerLeftEvent
   | TeamSizeChangedEvent
   | SplitEnabledEvent
+  | RulesChangedEvent
   | MatchEndedEvent;
 
 export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
@@ -234,6 +245,7 @@ export type Command =
   | { type: "leave"; playerId: string; fallback?: "reduce-team-size" }
   | { type: "changeTeamSize"; teamSize: number }
   | { type: "enableSplit"; hourlyRateCents: number; durationMinutes: number }
+  | { type: "changeRules"; ruleToggles: Partial<RuleToggles> }
   | { type: "end" };
 
 export type DecideResult = { event: Event } | { penaltiesRequired: true };

@@ -26,7 +26,7 @@ const config: MatchConfig = {
   teamSize: 2,
   colors: ["verde", "vermelho"],
   gameMinutes: 10,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 const playerNames = ["Ana", "Beto", "Caio", "Duda"];
@@ -426,7 +426,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const sixNames = ["A", "B", "C", "D", "E", "F"];
@@ -501,7 +501,10 @@ describe("MatchesService", () => {
   it("S7 CEN-1: win swaps the losing team and zeroes the timer", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
@@ -540,7 +543,10 @@ describe("MatchesService", () => {
   it("S7 CEN-2: win rejects a team that is not on the field", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const offFieldId = started.teams[2]?.id;
     if (offFieldId === undefined) {
@@ -558,7 +564,10 @@ describe("MatchesService", () => {
   it("S7 CEN-3: penalties decide the winner and zero the timer", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const stored = await repository.findByCode(started.code);
     if (stored === null) {
@@ -636,7 +645,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -758,7 +767,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -863,7 +872,10 @@ describe("MatchesService", () => {
   it("S7 CEN-16: undo reverts the most recent undoable event", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
@@ -1043,7 +1055,10 @@ describe("MatchesService", () => {
   it("S7 CEN-21: undo does not touch the timer", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service, repository } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
@@ -1148,7 +1163,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -1355,7 +1370,10 @@ describe("MatchesService timer (S8)", () => {
   it("F3 CEN-7 (unit): listGames projects the active games of a match", async () => {
     const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fabio"];
     const { service } = makeService();
-    const created = await service.create({ config, playerNames: sixNames });
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
     const started = asView(await service.execute(created.code, created.version, { type: "start" }));
     const loserId = started.teams[1]?.id;
     if (loserId === undefined) {
@@ -1387,8 +1405,8 @@ describe("MatchesService timer (S8)", () => {
       started.teams[1]?.name,
     ]);
     expect(games[0]?.teams.map((team) => team.players)).toEqual([
-      started.teams[0]?.players,
-      started.teams[1]?.players,
+      started.teams[0]?.players.map(({ id, name }) => ({ id, name })),
+      started.teams[1]?.players.map(({ id, name }) => ({ id, name })),
     ]);
   });
 
@@ -2384,5 +2402,39 @@ describe("MatchesService enable split during the match", () => {
 
     expect(undone.config.split.enabled).toBe(false);
     expect(undone.splitDueAt).toBeNull();
+  });
+});
+
+describe("MatchesService draw rule (E5)", () => {
+  it("changes the rule mid-match, keeps the first arrival on a draw and undoes back to before the draw", async () => {
+    const { service } = makeService();
+    const sixNames = ["Ana", "Beto", "Caio", "Duda", "Eva", "Fábio"];
+    const created = await service.create({
+      config: { ...config, ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false } },
+      playerNames: sixNames,
+    });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    expect(started.teams.flatMap((team) => team.players).find((p) => p.name === "Ana")?.arrival).toBe(1);
+
+    const changed = asView(
+      await service.execute(started.code, started.version, {
+        type: "changeRules",
+        ruleToggles: { drawKeepsVeteran: true },
+      }),
+    );
+    expect(changed.config.ruleToggles).toEqual({ arrivalPriority: true, drawKeepsVeteran: true });
+    expect(changed.canUndo).toBe(false);
+
+    const anaTeam = changed.teams.find((team) => team.players.some((p) => p.name === "Ana"));
+    const drawn = asView(await service.execute(changed.code, changed.version, { type: "draw" }));
+    expect(drawn.teams[0]?.id).toBe(anaTeam?.id);
+    expect(drawn.teams[0]?.gameStreak).toBe(0);
+
+    const games = await service.listGames(drawn.code);
+    expect(games.at(-1)).toMatchObject({ outcome: "draw", winnerTeamId: null });
+
+    const undone = await service.undo(drawn.code, drawn.version);
+    expect(undone.teams).toEqual(changed.teams);
+    expect(undone.config.ruleToggles.drawKeepsVeteran).toBe(true);
   });
 });

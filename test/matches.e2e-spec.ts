@@ -441,7 +441,9 @@ describe("Matches API (e2e)", () => {
       started.teams[0]?.name,
       started.teams[1]?.name,
     ]);
-    expect(games[0]?.teams[0]?.players).toEqual(started.teams[0]?.players);
+    expect(games[0]?.teams[0]?.players).toEqual(
+      started.teams[0]?.players.map(({ id, name }) => ({ id, name })),
+    );
     expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
   });
 
@@ -455,7 +457,7 @@ describe("Matches API (e2e)", () => {
   it.each([
     ["omitted", undefined, true],
     ["empty", {}, true],
-    ["off", { arrivalPriority: false }, false],
+    ["off", { arrivalPriority: false, drawKeepsVeteran: false }, false],
   ])(
     "F4 CEN-10: POST /api/matches resolves rule toggles (%s)",
     async (_label, ruleToggles, expected) => {
@@ -473,6 +475,7 @@ describe("Matches API (e2e)", () => {
 
       expect(viewOf(response).config.ruleToggles).toEqual({
         arrivalPriority: expected,
+        drawKeepsVeteran: false,
       });
     },
   );
@@ -516,6 +519,7 @@ describe("Matches API (e2e)", () => {
     const fetched = await request(server).get(`/api/matches/${created.code}`);
     expect(viewOf(fetched).config.ruleToggles).toEqual({
       arrivalPriority: false,
+      drawKeepsVeteran: false,
     });
 
     let current = created;
@@ -531,6 +535,45 @@ describe("Matches API (e2e)", () => {
     }
 
     expect(queues.some((queue) => queue.join() !== "p11")).toBe(true);
+  });
+
+  it("E5: PUT /api/matches/:code/rules turns the draw rule on and the next draw skips penalties", async () => {
+    const created = viewOf(
+      await request(httpServerOf(app))
+        .post("/api/matches")
+        .send({
+          config: { teamSize: 2, colors: ["verde", "vermelho"], gameMinutes: 10 },
+          playerNames: ["Ana", "Beto", "Caio", "Duda"],
+        }),
+    );
+    expect(created.config.ruleToggles.drawKeepsVeteran).toBe(false);
+    const code = created.code;
+    await request(httpServerOf(app)).post(`/api/matches/${code}/start`).set("If-Match", "1").send();
+
+    const invalid = await request(httpServerOf(app))
+      .put(`/api/matches/${code}/rules`)
+      .set("If-Match", "2")
+      .send({ drawKeepsVeteran: "sim" });
+    expect(invalid.status).toBe(400);
+
+    const changed = viewOf(
+      await request(httpServerOf(app))
+        .put(`/api/matches/${code}/rules`)
+        .set("If-Match", "2")
+        .send({ drawKeepsVeteran: true }),
+    );
+    expect(changed.version).toBe(3);
+    expect(changed.config.ruleToggles).toEqual({ arrivalPriority: true, drawKeepsVeteran: true });
+
+    const drawn = await request(httpServerOf(app))
+      .post(`/api/matches/${code}/games/draw`)
+      .set("If-Match", "3")
+      .send();
+    expect(drawn.status).toBe(200);
+    const view = viewOf(drawn);
+    expect(view.version).toBe(4);
+    const ana = view.teams[0]?.players.find((player) => player.name === "Ana");
+    expect(ana?.arrival).toBe(1);
   });
 
   it("CEN-16: Swagger UI is served outside production", async () => {

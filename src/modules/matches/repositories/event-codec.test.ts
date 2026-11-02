@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_SPLIT_CONFIG, applyEvent } from "../../../domain/match";
+import { DEFAULT_SPLIT_CONFIG, applyEvent, type Event } from "../../../domain/match";
 import { decodeEvent, encodeEventPayload } from "./event-codec";
 
 const legacyPayload = {
@@ -18,7 +18,7 @@ describe("event codec", () => {
   it("F4 CEN-9: reads a legacy MATCH_CREATED without rule toggles as all rules off", () => {
     const event = decodeEvent("MATCH_CREATED", legacyPayload);
     const state = applyEvent(null, event);
-    expect(state.config.ruleToggles).toEqual({ arrivalPriority: false });
+    expect(state.config.ruleToggles).toEqual({ arrivalPriority: false, drawKeepsVeteran: false });
     expect(state.config.split).toEqual(DEFAULT_SPLIT_CONFIG);
   });
 
@@ -32,6 +32,7 @@ describe("event codec", () => {
     });
     expect(applyEvent(null, event).config.ruleToggles).toEqual({
       arrivalPriority: true,
+      drawKeepsVeteran: false,
     });
   });
 
@@ -40,14 +41,14 @@ describe("event codec", () => {
       ...legacyPayload,
       config: {
         ...legacyPayload.config,
-        ruleToggles: { arrivalPriority: true },
+        ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false },
       },
     });
     expect(event).toEqual({
       type: "MATCH_SET_UP",
       config: {
         ...legacyPayload.config,
-        ruleToggles: { arrivalPriority: true },
+        ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       players: legacyPayload.players,
@@ -64,7 +65,7 @@ describe("event codec", () => {
       type: "MATCH_CREATED",
       config: {
         ...legacyPayload.config,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       players: legacyPayload.players,
@@ -103,5 +104,41 @@ describe("event codec", () => {
       teamNames: [null, "Atacadão"],
     };
     expect(decodeEvent(event.type, encodeEventPayload(event))).toEqual(event);
+  });
+});
+
+describe("event codec — E5", () => {
+  it("keeps numeric arrival numbers and drops invalid ones", () => {
+    const event = decodeEvent("MATCH_CREATED", {
+      ...legacyPayload,
+      players: [
+        { id: "p1", name: "P1", arrival: 1 },
+        { id: "p2", name: "P2", arrival: "2" },
+      ],
+    });
+    expect(event.type === "MATCH_CREATED" && event.players).toEqual([
+      { id: "p1", name: "P1", arrival: 1 },
+      { id: "p2", name: "P2" },
+    ]);
+    const joined = decodeEvent("PLAYER_JOINED", {
+      player: { id: "p3", name: "P3", arrival: 3 },
+      newTeamIds: [],
+    });
+    expect(joined).toEqual({
+      type: "PLAYER_JOINED",
+      player: { id: "p3", name: "P3", arrival: 3 },
+      newTeamIds: [],
+    });
+  });
+
+  it("round-trips GAME_WON decided by the draw rule and RULES_CHANGED", () => {
+    const won: Event = { type: "GAME_WON", loserTeamId: "t1", decidedBy: "draw", newTeamIds: [] };
+    expect(decodeEvent("GAME_WON", encodeEventPayload(won))).toEqual(won);
+    const changed: Event = {
+      type: "RULES_CHANGED",
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: true },
+    };
+    expect(decodeEvent("RULES_CHANGED", encodeEventPayload(changed))).toEqual(changed);
+    expect(() => decodeEvent("RULES_CHANGED", {})).toThrow(/RULES_CHANGED/);
   });
 });
