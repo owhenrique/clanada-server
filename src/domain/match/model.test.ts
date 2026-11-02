@@ -17,6 +17,7 @@ describe("CEN-20: UNDOABLE_EVENTS", () => {
         "GAME_DRAWN",
         "GAME_WON",
         "PLAYERS_SWAPPED",
+        "PLAYER_CASCADED",
         "PLAYER_JOINED",
         "PLAYER_LEFT",
         "TEAM_SIZE_CHANGED",

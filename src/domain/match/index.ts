@@ -14,6 +14,7 @@ export { resolveDraw, applyDraw } from "./game-result";
 export { playerJoins } from "./roster";
 export { playerLeaves, playerLeavesWithReducedTeamSize } from "./roster";
 export { swapPlayers } from "./team-edits";
+export { cascadePlayer } from "./cascade";
 export { shuffle } from "./support";
 export { flattenPlayers } from "./lineup";
 export { changeTeamSize } from "./team-edits";

@@ -3,6 +3,7 @@ import { requireState, idsFrom, assignTeamNames } from "./support";
 import { formInitialState, flattenPlayers, decideCreate, decideSetup, decideReshuffle } from "./lineup";
 import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
 import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
+import { cascadePlayer, decideCascade } from "./cascade";
 import { decideEnableSplit, enableSplit } from "./split";
 import { decideAddColors, addColors } from "./colors";
 import {
@@ -67,6 +68,7 @@ const commandHandlers: Record<Command["type"], CommandHandler> = {
   setup: decideSetup as CommandHandler,
   reshuffle: decideReshuffle as CommandHandler,
   swap: decideSwap as CommandHandler,
+  cascade: decideCascade as CommandHandler,
   start: decideStart as CommandHandler,
   win: decideWin as CommandHandler,
   draw: decideDraw as CommandHandler,
@@ -85,6 +87,7 @@ const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   setup: ["DRAFT"],
   reshuffle: ["DRAFT"],
   swap: ["DRAFT", "ACTIVE"],
+  cascade: ["DRAFT", "ACTIVE"],
   start: ["DRAFT"],
   win: ["ACTIVE"],
   draw: ["ACTIVE"],
@@ -151,6 +154,13 @@ function handlePlayersSwapped(
 ): MatchState {
   const current = requireState(state);
   return swapPlayers(current, event.playerAId, event.playerBId);
+}
+
+function handlePlayerCascaded(
+  state: MatchState | null,
+  event: Extract<Event, { type: "PLAYER_CASCADED" }>,
+): MatchState {
+  return cascadePlayer(requireState(state), event.playerId, event.targetTeamId);
 }
 
 function handleMatchStarted(state: MatchState | null): MatchState {
@@ -253,6 +263,7 @@ const eventHandlers: HandlerMap = {
   MATCH_SET_UP: handleMatchSetUp,
   RESHUFFLED: handleReshuffled,
   PLAYERS_SWAPPED: handlePlayersSwapped,
+  PLAYER_CASCADED: handlePlayerCascaded,
   MATCH_STARTED: handleMatchStarted,
   GAME_WON: handleGameWon,
   GAME_DRAWN: handleGameDrawn,

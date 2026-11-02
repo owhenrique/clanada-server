@@ -144,6 +144,12 @@ export type PlayersSwappedEvent = {
   playerBId: string;
 };
 
+export type PlayerCascadedEvent = {
+  type: "PLAYER_CASCADED";
+  playerId: string;
+  targetTeamId: string;
+};
+
 export type MatchStartedEvent = { type: "MATCH_STARTED" };
 
 export type GameWonEvent = {
@@ -206,6 +212,7 @@ export type Event =
   | MatchSetUpEvent
   | ReshuffledEvent
   | PlayersSwappedEvent
+  | PlayerCascadedEvent
   | MatchStartedEvent
   | GameWonEvent
   | GameDrawnEvent
@@ -219,6 +226,7 @@ export type Event =
 
 export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
   "PLAYERS_SWAPPED",
+  "PLAYER_CASCADED",
   "GAME_WON",
   "GAME_DRAWN",
   "PLAYER_JOINED",
@@ -244,6 +252,7 @@ export type Command =
   | { type: "setup"; playerNames: string[]; config: CreateMatchConfig }
   | { type: "reshuffle" }
   | { type: "swap"; playerAId: string; playerBId: string }
+  | { type: "cascade"; playerId: string; targetTeamId: string }
   | { type: "start" }
   | { type: "win"; loserTeamId: string }
   | { type: "draw" }

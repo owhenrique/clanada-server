@@ -106,6 +106,12 @@ const decoders: Record<Event["type"], EventDecoder> = {
       playerBId: p.playerBId,
     };
   },
+  PLAYER_CASCADED: (p) => {
+    if (!isString(p.playerId) || !isString(p.targetTeamId)) {
+      invalidPayload("PLAYER_CASCADED");
+    }
+    return { type: "PLAYER_CASCADED", playerId: p.playerId, targetTeamId: p.targetTeamId };
+  },
   MATCH_STARTED: (_p) => ({ type: "MATCH_STARTED" }),
   GAME_WON: (p) => {
     if (

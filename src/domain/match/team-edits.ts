@@ -3,7 +3,7 @@ import { at, requireState, recordingIdFactory, teamNamesForEvent } from "./suppo
 import { compactQueue, assignBibs, usedColors } from "./lineup";
 import type { Player, Team, MatchState, Command, CommandContext, DecideResult } from "./model";
 
-type PlayerLocation =
+export type PlayerLocation =
   | { kind: "team"; teamIndex: number; playerIndex: number }
   | { kind: "queue"; playerIndex: number };
 
