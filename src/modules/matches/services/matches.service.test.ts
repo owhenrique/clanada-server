@@ -2436,6 +2436,7 @@ describe("MatchesService draw rule (E5)", () => {
     const undone = await service.undo(drawn.code, drawn.version);
     expect(undone.teams).toEqual(changed.teams);
     expect(undone.config.ruleToggles.drawKeepsVeteran).toBe(true);
+  });
 });
 
 describe("MatchesService add colors during the match", () => {
