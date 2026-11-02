@@ -92,4 +92,14 @@ describe("addColors", () => {
     expect(withColor.teams[2]?.color).toBe("azul");
     expect(replay(events).teams[2]?.color).toBeNull();
   });
+
+  it("makes the color available to teams formed later", () => {
+    const { state } = started(2, ["verde", "vermelho"]);
+    const withColor = applyEvent(state, add(state, ["azul"]));
+    const joined = decide(withColor, { type: "join", name: "Novo" }, ctx);
+    if (!("event" in joined)) throw new Error("expected event");
+    const next = applyEvent(withColor, joined.event);
+    expect(next.teams.map((team) => team.color)).toEqual(["verde", "vermelho", "azul"]);
+    assertValidState(next);
+  });
 });
