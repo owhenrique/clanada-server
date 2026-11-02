@@ -15,7 +15,7 @@ function stateWithStatus(status: MatchState["status"]): MatchState {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       (i) => `t${i}`,
@@ -61,7 +61,7 @@ describe("CEN-3/CEN-19: decide — status permitido", () => {
           teamSize: 1,
           colors: ["verde"],
           gameMinutes: 10,
-          ruleToggles: { arrivalPriority: false },
+          ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
           split: DEFAULT_SPLIT_CONFIG,
         },
       },
@@ -91,7 +91,7 @@ describe("CEN-7/CEN-8: decideStart", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       (i) => `t${i}`,
@@ -112,7 +112,7 @@ describe("CEN-7/CEN-8: decideStart", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       (i) => `t${i}`,
@@ -131,7 +131,7 @@ describe("CEN-18: decideEnd", () => {
           teamSize: 5,
           colors: ["verde", "vermelho"],
           gameMinutes: 10,
-          ruleToggles: { arrivalPriority: false },
+          ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
           split: DEFAULT_SPLIT_CONFIG,
         },
         (i) => `t${i}`,
@@ -147,7 +147,7 @@ const config: MatchConfig = {
   teamSize: 5,
   colors: ["verde", "vermelho", "azul"],
   gameMinutes: 10,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 
@@ -536,5 +536,122 @@ describe("E1: team names", () => {
       "Assaí",
       "Carrefour",
     ]);
+  });
+});
+
+describe("E5: draw without penalties (drawKeepsVeteran)", () => {
+  const ruleConfig = (drawKeepsVeteran: boolean, teamSize = 2): MatchConfig => ({
+    teamSize,
+    colors: ["verde", "vermelho"],
+    gameMinutes: 10,
+    ruleToggles: { arrivalPriority: false, drawKeepsVeteran },
+    split: DEFAULT_SPLIT_CONFIG,
+  });
+  const arrivalPlayers: Player[] = [
+    { id: "a", name: "A", arrival: 3 },
+    { id: "b", name: "B", arrival: 4 },
+    { id: "c", name: "C", arrival: 1 },
+    { id: "d", name: "D", arrival: 6 },
+    { id: "e", name: "E", arrival: 2 },
+    { id: "f", name: "F", arrival: 5 },
+  ];
+
+  function started(drawKeepsVeteran: boolean, players: Player[] = arrivalPlayers): Event[] {
+    return [
+      {
+        type: "MATCH_CREATED",
+        config: ruleConfig(drawKeepsVeteran),
+        players,
+        teamIds: ["t0", "t1", "t2"].slice(0, Math.floor(players.length / 2)),
+      },
+      { type: "MATCH_STARTED" },
+    ];
+  }
+
+  function ctx(): CommandContext {
+    let n = 0;
+    return { random: () => 0.3, nextId: () => `n${n++}`, timerRunning: false };
+  }
+
+  function run(events: Event[], command: Parameters<typeof decide>[1]): Event[] {
+    const result = decide(replay(events), command, ctx());
+    if (!("event" in result)) {
+      throw new Error("expected an event");
+    }
+    return [...events, result.event];
+  }
+
+  it("CA-2: rule off still asks for penalties", () => {
+    const result = decide(replay(started(false)), { type: "draw" }, ctx());
+    expect(result).toEqual({ penaltiesRequired: true });
+  });
+
+  it("CA-4: first draw keeps the team of the earliest arrival", () => {
+    const events = run(started(true), { type: "draw" });
+    expect(events.at(-1)).toMatchObject({ type: "GAME_WON", loserTeamId: "t0", decidedBy: "draw" });
+    const state = replay(events);
+    expect(state.teams.map((t) => t.id)).toEqual(["t1", "t2", "t0"]);
+    expect(state.teams[0]?.gameStreak).toBe(0);
+    expect(state.veteranTeamId).toBe("t1");
+  });
+
+  it("CA-3: the veteran stays even if the newcomer has the earliest arrival, streak unchanged", () => {
+    const afterWin = run(started(true), { type: "win", loserTeamId: "t1" });
+    expect(replay(afterWin).veteranTeamId).toBe("t0");
+    const events = run(afterWin, { type: "draw" });
+    expect(events.at(-1)).toMatchObject({ type: "GAME_WON", loserTeamId: "t2", decidedBy: "draw" });
+    const state = replay(events);
+    expect(state.teams.map((t) => t.id)).toEqual(["t0", "t1", "t2"]);
+    expect(state.teams[0]?.gameStreak).toBe(1);
+    expect(state.teams[2]?.gameStreak).toBe(0);
+  });
+
+  it("same team drawing again stays veteran", () => {
+    const first = run(started(true), { type: "draw" });
+    const second = run(first, { type: "draw" });
+    expect(second.at(-1)).toMatchObject({ loserTeamId: "t2", decidedBy: "draw" });
+    expect(replay(second).teams[0]?.id).toBe("t1");
+  });
+
+  it("CA-5: with two complete teams waiting both leave as before and the veteran is cleared", () => {
+    const players = makePlayers(8).map((p, index) => ({ ...p, arrival: index + 1 }));
+    const created: Event[] = [
+      { type: "MATCH_CREATED", config: ruleConfig(true), players, teamIds: ["t0", "t1", "t2", "t3"] },
+      { type: "MATCH_STARTED" },
+    ];
+    const afterWin = run(created, { type: "win", loserTeamId: "t1" });
+    const events = run(afterWin, { type: "draw" });
+    expect(events.at(-1)?.type).toBe("GAME_DRAWN");
+    expect(replay(events).veteranTeamId).toBeUndefined();
+  });
+
+  it("CA-6: changing the rule in the menu applies from the next draw", () => {
+    const events = run(started(false), { type: "changeRules", ruleToggles: { drawKeepsVeteran: true } });
+    expect(events.at(-1)).toEqual({
+      type: "RULES_CHANGED",
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: true },
+    });
+    expect(replay(events).config.ruleToggles.drawKeepsVeteran).toBe(true);
+    expect(run(events, { type: "draw" }).at(-1)).toMatchObject({ decidedBy: "draw" });
+  });
+
+  it("CA-6: changing the rule is only allowed while the match is active", () => {
+    const draft = replay(started(false).slice(0, 1));
+    expect(() =>
+      decide(draft, { type: "changeRules", ruleToggles: { drawKeepsVeteran: true } }, ctx()),
+    ).toThrow(DomainError);
+  });
+
+  it("CA-7: undoing the draw restores the previous state, even with a later rule change", () => {
+    const afterWin = run(started(true), { type: "win", loserTeamId: "t1" });
+    const before = replay(afterWin);
+    const drawn = run(afterWin, { type: "draw" });
+    const ruleOff = run(drawn, { type: "changeRules", ruleToggles: { drawKeepsVeteran: false } });
+    const undone = ruleOff.filter((_, index) => index !== drawn.length - 1);
+    expect(replay(undone)).toEqual({
+      ...before,
+      config: { ...before.config, ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false } },
+    });
+    expect(replay(ruleOff).teams).toEqual(replay(drawn).teams);
   });
 });

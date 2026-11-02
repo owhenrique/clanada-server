@@ -25,6 +25,7 @@ src/
       model.ts                # vocabulário: estado, eventos, comandos, rule toggles
       support.ts players.ts   # utilitários (at, shuffle, ids) e nomes de jogador
       lineup.ts               # §1 §7 §8: formação, fila, coletes, criar/novo sorteio
+      arrival.ts              # ordem de chegada e quem fica no empate sem pênaltis (E5)
       game-result.ts          # §2–§4: vitória, empate, pênaltis
       team-edits.ts           # §10 §11: troca, tamanho do time
       roster.ts               # §5 §6: entrada e saída
@@ -71,7 +72,7 @@ Fluxo sempre nesta direção; nunca o inverso.
 ## Princípios (SOLID sem cerimônia)
 
 - **Responsabilidade única:** em `domain/match`, cada área de regra do `PROJETO.md` num arquivo, com a regra (evento → estado) e o comando (`decideX`) juntos; arquivo de produção até ~250 linhas — passou disso, divida por subassunto. Um arquivo de teste por arquivo de produção (`<conceito>.test.ts`), sem limite de linhas. Controller, service e repository com os papéis da tabela acima.
-- **Sem ciclo no domínio:** cada arquivo só importa os anteriores nesta ordem: `model` → `support` → `players` → `lineup` → `game-result` → `team-edits` → `roster` → `engine` → `game-history` → `invariants` → `index`. De fora, importa-se só pelo `index.ts`.
+- **Sem ciclo no domínio:** cada arquivo só importa os anteriores nesta ordem: `model` → `support` → `players` → `lineup` → `arrival` → `game-result` → `team-edits` → `roster` → `engine` → `game-history` → `invariants` → `index`. De fora, importa-se só pelo `index.ts`.
 - **Aberto/fechado:** mapas tipados `Record<Type, Handler>` para eventos/comandos novos — não mexe nos handlers existentes.
 - **Inversão de dependência:** services dependem de portas (`MatchesRepository`, `Clock`, `IdGenerator`, `RandomSource`) como **abstract class**, nunca tokens de string. Em teste, trocam por fakes/in-memory.
 - **Reuso:** funções auxiliares de domínio exportadas e reaproveitadas entre regras; nunca reimplementadas.

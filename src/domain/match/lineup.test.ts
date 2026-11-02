@@ -30,7 +30,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho", "azul"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -47,7 +47,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -63,7 +63,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -78,7 +78,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho", "azul"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -93,7 +93,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho", "azul"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -109,7 +109,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho", "azul", "amarelo"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -124,7 +124,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -140,7 +140,7 @@ describe("CEN-1: formInitialState", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -159,7 +159,7 @@ describe("CEN-1: flattenPlayers", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -172,7 +172,7 @@ describe("CEN-1: flattenPlayers", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -187,7 +187,7 @@ describe("CEN-1: flattenPlayers", () => {
         teamSize: 5,
         colors: ["verde", "vermelho"],
         gameMinutes: 10,
-        ruleToggles: { arrivalPriority: false },
+        ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
         split: DEFAULT_SPLIT_CONFIG,
       },
       teamId,
@@ -222,8 +222,8 @@ function ids(list: Player[]): string[] {
   return list.map((player) => player.id);
 }
 
-const on = { arrivalPriority: true };
-const off = { arrivalPriority: false };
+const on = { arrivalPriority: true, drawKeepsVeteran: false };
+const off = { arrivalPriority: false, drawKeepsVeteran: false };
 
 describe("orderPlayers", () => {
   it("F4 CEN-1: shuffles only the seated players and keeps the rest in arrival order", () => {
@@ -258,7 +258,7 @@ const config: MatchConfig = {
   teamSize: 5,
   colors: ["verde", "vermelho"],
   gameMinutes: 10,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 
@@ -400,12 +400,12 @@ const arrivalOn = {
   teamSize: 5,
   colors: ["verde", "vermelho"],
   gameMinutes: 10,
-  ruleToggles: { arrivalPriority: true },
+  ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 const arrivalOff = {
   ...arrivalOn,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 
@@ -448,7 +448,7 @@ describe("arrival priority on create", () => {
       { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
       () => 0,
     );
-    expect(state.config.ruleToggles).toEqual({ arrivalPriority: true });
+    expect(state.config.ruleToggles).toEqual({ arrivalPriority: true, drawKeepsVeteran: false });
     expect(queueNames(state)).toEqual(["p11"]);
   });
 });
@@ -492,7 +492,7 @@ function draftState(): MatchState {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     },
     (i) => `t${i}`,
@@ -544,7 +544,7 @@ function arrivalDraft(arrivalPriority: boolean): MatchState {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority },
+      ruleToggles: { arrivalPriority, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     },
     (i) => `t${i}`,
@@ -603,7 +603,7 @@ function threeTeamDraft(arrivalPriority: boolean): MatchState {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority },
+      ruleToggles: { arrivalPriority, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     },
     (i) => `t${i}`,

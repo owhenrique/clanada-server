@@ -7,7 +7,7 @@ const config: MatchConfig = {
   teamSize: 2,
   colors: ["azul", "vermelho", "verde", "amarelo"],
   gameMinutes: 7,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 
@@ -251,5 +251,18 @@ describe("projectGameHistory", () => {
     expect(
       projectGameHistory(history([...created(6, ["q1", "q2", "q3"]), { type: "MATCH_ENDED" }])),
     ).toEqual([]);
+  });
+});
+
+describe("E5: draw decided by the drawKeepsVeteran rule", () => {
+  it("is recorded as a draw without winner", () => {
+    const events: Event[] = [
+      { type: "MATCH_CREATED", config, players: makePlayers(4), teamIds: ["t0", "t1"] },
+      { type: "MATCH_STARTED" },
+      { type: "GAME_WON", loserTeamId: "t1", decidedBy: "draw", newTeamIds: [] },
+    ];
+    const record = single(projectGameHistory(history(events)));
+    expect(record.outcome).toBe("draw");
+    expect(record.winnerTeamId).toBeNull();
   });
 });

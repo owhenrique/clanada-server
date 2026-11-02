@@ -26,7 +26,7 @@ const config: MatchConfig = {
   teamSize: 2,
   colors: ["verde", "vermelho"],
   gameMinutes: 10,
-  ruleToggles: { arrivalPriority: false },
+  ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
   split: DEFAULT_SPLIT_CONFIG,
 };
 const playerNames = ["Ana", "Beto", "Caio", "Duda"];
@@ -426,7 +426,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const sixNames = ["A", "B", "C", "D", "E", "F"];
@@ -636,7 +636,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -758,7 +758,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -1148,7 +1148,7 @@ describe("MatchesService", () => {
       teamSize: 5,
       colors: ["verde", "vermelho"],
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     };
     const fourteenNames = Array.from({ length: 14 }, (_, index) => `Player${index}`);
@@ -1387,8 +1387,8 @@ describe("MatchesService timer (S8)", () => {
       started.teams[1]?.name,
     ]);
     expect(games[0]?.teams.map((team) => team.players)).toEqual([
-      started.teams[0]?.players,
-      started.teams[1]?.players,
+      started.teams[0]?.players.map(({ id, name }) => ({ id, name })),
+      started.teams[1]?.players.map(({ id, name }) => ({ id, name })),
     ]);
   });
 

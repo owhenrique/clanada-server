@@ -128,9 +128,10 @@ export function decideCreate(
   command: Extract<Command, { type: "create" }>,
   ctx: CommandContext,
 ): DecideResult {
-  const players = command.playerNames.map((name) => ({
+  const players = command.playerNames.map((name, index) => ({
     id: ctx.nextId(),
     name: normalizeName(name),
+    arrival: index + 1,
   }));
   if (hasUnresolvedDuplicates(players)) {
     throw new DomainError("DUPLICATE_PLAYER_NAMES");

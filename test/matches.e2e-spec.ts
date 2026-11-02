@@ -455,7 +455,7 @@ describe("Matches API (e2e)", () => {
   it.each([
     ["omitted", undefined, true],
     ["empty", {}, true],
-    ["off", { arrivalPriority: false }, false],
+    ["off", { arrivalPriority: false, drawKeepsVeteran: false }, false],
   ])(
     "F4 CEN-10: POST /api/matches resolves rule toggles (%s)",
     async (_label, ruleToggles, expected) => {

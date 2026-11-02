@@ -2,6 +2,7 @@ import { DomainError } from "../../shared/errors/domain-error";
 import { at, requireState, recordingIdFactory, teamNamesForEvent } from "./support";
 import { normalizeName } from "./players";
 import { compactQueue, assignBibs, usedColors } from "./lineup";
+import { nextArrival } from "./arrival";
 import { locatePlayer } from "./team-edits";
 import type { Player, MatchState, Command, CommandContext, DecideResult } from "./model";
 
@@ -145,7 +146,11 @@ export function decideJoin(
   ctx: CommandContext,
 ): DecideResult {
   const current = requireState(state);
-  const player = { id: ctx.nextId(), name: normalizeName(command.name) };
+  const player = {
+    id: ctx.nextId(),
+    name: normalizeName(command.name),
+    arrival: nextArrival(current),
+  };
   const factory = recordingIdFactory(ctx.nextId);
   const next = playerJoins(current, player, factory.createId);
   return {

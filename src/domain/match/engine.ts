@@ -33,6 +33,20 @@ export function decideStart(
   return { event: { type: "MATCH_STARTED" } };
 }
 
+export function decideChangeRules(
+  state: MatchState | null,
+  command: Extract<Command, { type: "changeRules" }>,
+  _ctx: CommandContext,
+): DecideResult {
+  const current = requireState(state);
+  return {
+    event: {
+      type: "RULES_CHANGED",
+      ruleToggles: { ...current.config.ruleToggles, ...command.ruleToggles },
+    },
+  };
+}
+
 export function decideEnd(
   state: MatchState | null,
   _command: Extract<Command, { type: "end" }>,
@@ -61,6 +75,7 @@ const commandHandlers: Record<Command["type"], CommandHandler> = {
   leave: decideLeave as CommandHandler,
   changeTeamSize: decideChangeTeamSize as CommandHandler,
   enableSplit: decideEnableSplit as CommandHandler,
+  changeRules: decideChangeRules as CommandHandler,
   end: decideEnd as CommandHandler,
 };
 
@@ -77,6 +92,7 @@ const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   leave: ["ACTIVE"],
   changeTeamSize: ["ACTIVE"],
   enableSplit: ["ACTIVE"],
+  changeRules: ["ACTIVE"],
   end: ["ACTIVE"],
 };
 
@@ -144,7 +160,12 @@ function handleGameWon(
   event: Extract<Event, { type: "GAME_WON" }>,
 ): MatchState {
   const current = requireState(state);
-  return applyGameResult(current, event.loserTeamId, idsFrom(event.newTeamIds));
+  return applyGameResult(
+    current,
+    event.loserTeamId,
+    idsFrom(event.newTeamIds),
+    event.decidedBy !== "draw",
+  );
 }
 
 function handleGameDrawn(
@@ -199,6 +220,14 @@ function handleSplitEnabled(
   return enableSplit(requireState(state), event);
 }
 
+function handleRulesChanged(
+  state: MatchState | null,
+  event: Extract<Event, { type: "RULES_CHANGED" }>,
+): MatchState {
+  const current = requireState(state);
+  return { ...current, config: { ...current.config, ruleToggles: event.ruleToggles } };
+}
+
 function handleMatchEnded(state: MatchState | null): MatchState {
   return { ...requireState(state), status: "ENDED" };
 }
@@ -222,6 +251,7 @@ const eventHandlers: HandlerMap = {
   PLAYER_LEFT: handlePlayerLeft,
   TEAM_SIZE_CHANGED: handleTeamSizeChanged,
   SPLIT_ENABLED: handleSplitEnabled,
+  RULES_CHANGED: handleRulesChanged,
   MATCH_ENDED: handleMatchEnded,
 };
 

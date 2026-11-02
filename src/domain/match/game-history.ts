@@ -43,7 +43,7 @@ function toGameRecord(state: MatchState, entry: HistoryEvent, number: number): G
   }
   const onField = state.teams.slice(0, ON_FIELD_TEAM_COUNT);
   const base = { number, seq: entry.seq, playedAt: entry.createdAt, teams: onField.map(toTeamRecord) };
-  if (event.type === "GAME_DRAWN") {
+  if (event.type === "GAME_DRAWN" || event.decidedBy === "draw") {
     return { ...base, outcome: "draw", winnerTeamId: null };
   }
   const winner = onField.find((team) => team.id !== event.loserTeamId);

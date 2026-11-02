@@ -35,21 +35,31 @@ describe("CEN-20: UNDOABLE_EVENTS", () => {
 
 describe("rule toggles", () => {
   it("F4 CEN-10: resolves a missing or partial input over the defaults", () => {
-    expect(DEFAULT_RULE_TOGGLES).toEqual({ arrivalPriority: true });
-    expect(resolveRuleToggles(undefined)).toEqual({ arrivalPriority: true });
-    expect(resolveRuleToggles({})).toEqual({ arrivalPriority: true });
+    expect(DEFAULT_RULE_TOGGLES).toEqual({ arrivalPriority: true, drawKeepsVeteran: false });
+    expect(resolveRuleToggles(undefined)).toEqual({ arrivalPriority: true, drawKeepsVeteran: false });
+    expect(resolveRuleToggles({})).toEqual({ arrivalPriority: true, drawKeepsVeteran: false });
     expect(resolveRuleToggles({ arrivalPriority: false })).toEqual({
       arrivalPriority: false,
+      drawKeepsVeteran: false,
+    });
+    expect(resolveRuleToggles({ drawKeepsVeteran: true })).toEqual({
+      arrivalPriority: true,
+      drawKeepsVeteran: true,
     });
   });
 
   it("F4 CEN-9: decodes persisted configs without toggles as all rules off", () => {
-    expect(LEGACY_RULE_TOGGLES).toEqual({ arrivalPriority: false });
-    expect(decodeRuleToggles(undefined)).toEqual({ arrivalPriority: false });
+    expect(LEGACY_RULE_TOGGLES).toEqual({ arrivalPriority: false, drawKeepsVeteran: false });
+    expect(decodeRuleToggles(undefined)).toEqual({ arrivalPriority: false, drawKeepsVeteran: false });
     expect(decodeRuleToggles({ arrivalPriority: true })).toEqual({
       arrivalPriority: true,
+      drawKeepsVeteran: false,
     });
-    expect(decodeRuleToggles({})).toEqual({ arrivalPriority: true });
+    expect(decodeRuleToggles({ arrivalPriority: false, drawKeepsVeteran: "yes" })).toEqual({
+      arrivalPriority: false,
+      drawKeepsVeteran: false,
+    });
+    expect(decodeRuleToggles({})).toEqual({ arrivalPriority: true, drawKeepsVeteran: false });
   });
 });
 

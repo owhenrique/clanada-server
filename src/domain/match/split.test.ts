@@ -159,7 +159,7 @@ describe("projectDepartedPlayers", () => {
     teamSize: 5,
     colors: ["verde", "vermelho"],
     gameMinutes: 10,
-    ruleToggles: { arrivalPriority: false },
+    ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
     split: DEFAULT_SPLIT_CONFIG,
   };
   const created = historyEvent(1, {

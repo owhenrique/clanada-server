@@ -20,7 +20,7 @@ function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
       teamSize: 5,
       colors,
       gameMinutes: 10,
-      ruleToggles: { arrivalPriority: false },
+      ruleToggles: { arrivalPriority: false, drawKeepsVeteran: false },
       split: DEFAULT_SPLIT_CONFIG,
     },
     teams,

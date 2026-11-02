@@ -1,6 +1,7 @@
 import { DomainError } from "../../shared/errors/domain-error";
 import { requireState, recordingIdFactory, teamNamesForEvent } from "./support";
 import { compactQueue, assignBibs, usedColors } from "./lineup";
+import { drawStayerId } from "./arrival";
 import type {
   Team,
   Player,
@@ -23,11 +24,15 @@ export function applyGameResult(
   state: MatchState,
   loserId: string,
   createTeamId: () => string,
+  countsAsWin = true,
 ): MatchState {
   const [first, second] = onFieldTeams(state);
   const loser = first.id === loserId ? first : second;
   const winner = first.id === loserId ? second : first;
-  const winnerAfter: Team = { ...winner, gameStreak: winner.gameStreak + 1 };
+  const winnerAfter: Team = {
+    ...winner,
+    gameStreak: countsAsWin ? winner.gameStreak + 1 : winner.gameStreak,
+  };
   const waiting = state.teams.slice(2);
 
   let teams: Team[];
@@ -50,6 +55,7 @@ export function applyGameResult(
     ...state,
     teams: assignBibs(compacted.teams, state.config.colors, usedColors(state.teams)),
     queue: compacted.queue,
+    veteranTeamId: winner.id,
   };
 }
 
@@ -83,7 +89,8 @@ export function applyDraw(
     state.config.colors,
     usedColors(state.teams),
   );
-  return { ...state, teams, queue: compacted.queue };
+  const { veteranTeamId: _veteranTeamId, ...rest } = state;
+  return { ...rest, teams, queue: compacted.queue };
 }
 
 export function resolveDraw(
@@ -110,7 +117,7 @@ export function resolveDraw(
 export function decideGameWon(
   state: MatchState | null,
   loserTeamId: string,
-  decidedBy: "match" | "penalties",
+  decidedBy: "match" | "penalties" | "draw",
   ctx: CommandContext,
 ): DecideResult {
   const current = requireState(state);
@@ -119,7 +126,7 @@ export function decideGameWon(
     throw new DomainError("TEAM_NOT_ON_FIELD");
   }
   const factory = recordingIdFactory(ctx.nextId);
-  const next = applyGameResult(current, loserTeamId, factory.createId);
+  const next = applyGameResult(current, loserTeamId, factory.createId, decidedBy !== "draw");
   return {
     event: {
       type: "GAME_WON",
@@ -139,6 +146,12 @@ export function decideWin(
   return decideGameWon(state, command.loserTeamId, "match", ctx);
 }
 
+function drawLoserId(state: MatchState): string {
+  const onField = onFieldTeams(state);
+  const stayerId = drawStayerId(state, onField);
+  return onField[0].id === stayerId ? onField[1].id : onField[0].id;
+}
+
 export function decideDraw(
   state: MatchState | null,
   _command: Extract<Command, { type: "draw" }>,
@@ -148,7 +161,9 @@ export function decideDraw(
   const factory = recordingIdFactory(ctx.nextId);
   const outcome = resolveDraw(current, ctx.random, factory.createId);
   if (outcome.type === "penalties") {
-    return { penaltiesRequired: true };
+    return current.config.ruleToggles.drawKeepsVeteran
+      ? decideGameWon(current, drawLoserId(current), "draw", ctx)
+      : { penaltiesRequired: true };
   }
   return {
     event: {
