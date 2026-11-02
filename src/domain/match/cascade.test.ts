@@ -239,7 +239,11 @@ describe("E7 CEN-6: property — no duplicates, no losses, sizes kept", () => {
       const teams = Array.from({ length: teamCount }, (_, i) =>
         arrivals.slice(i * size, (i + 1) * size),
       );
-      const current = state(teams, arrivals.slice(size * teamCount));
+      const current = state(
+        teams,
+        arrivals.slice(size * teamCount),
+        rng() < 0.8,
+      );
       const moved = flattenPlayers(current)[
         Math.floor(rng() * arrivals.length)
       ] as Player;
@@ -275,6 +279,22 @@ describe("E7 CEN-6: property — no duplicates, no losses, sizes kept", () => {
           expect(t).toEqual(current.teams[index]);
         }
       });
+      expect(
+        next.teams.map(({ id, name, color, gameStreak }) => ({
+          id,
+          name,
+          color,
+          gameStreak,
+        })),
+      ).toEqual(
+        current.teams.map(({ id, name, color, gameStreak }) => ({
+          id,
+          name,
+          color,
+          gameStreak,
+        })),
+      );
+      expect(next.veteranTeamId).toBe(current.veteranTeamId);
       if (source !== -1) {
         expect(next.queue).toEqual(current.queue);
       }
