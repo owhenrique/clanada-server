@@ -47,11 +47,11 @@ export function resolveSplitConfig(partial: Partial<SplitConfig> | undefined): S
   return { ...DEFAULT_SPLIT_CONFIG, ...partial };
 }
 
-function isValidSplitRate(value: unknown): value is number {
+export function isValidSplitRate(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100000;
 }
 
-function isValidSplitDuration(value: unknown): value is number {
+export function isValidSplitDuration(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&
@@ -178,6 +178,12 @@ export type TeamSizeChangedEvent = {
   teamNames?: (string | null)[];
 };
 
+export type SplitEnabledEvent = {
+  type: "SPLIT_ENABLED";
+  hourlyRateCents: number;
+  durationMinutes: number;
+};
+
 export type MatchEndedEvent = { type: "MATCH_ENDED" };
 
 export type Event =
@@ -191,6 +197,7 @@ export type Event =
   | PlayerJoinedEvent
   | PlayerLeftEvent
   | TeamSizeChangedEvent
+  | SplitEnabledEvent
   | MatchEndedEvent;
 
 export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
@@ -200,6 +207,7 @@ export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
   "PLAYER_JOINED",
   "PLAYER_LEFT",
   "TEAM_SIZE_CHANGED",
+  "SPLIT_ENABLED",
 ]);
 
 export type CommandContext = {
@@ -225,6 +233,7 @@ export type Command =
   | { type: "join"; name: string }
   | { type: "leave"; playerId: string; fallback?: "reduce-team-size" }
   | { type: "changeTeamSize"; teamSize: number }
+  | { type: "enableSplit"; hourlyRateCents: number; durationMinutes: number }
   | { type: "end" };
 
 export type DecideResult = { event: Event } | { penaltiesRequired: true };

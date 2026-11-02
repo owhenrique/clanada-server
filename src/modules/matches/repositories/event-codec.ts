@@ -167,6 +167,16 @@ const decoders: Record<Event["type"], EventDecoder> = {
       ...teamNamesField("TEAM_SIZE_CHANGED", p.teamNames),
     };
   },
+  SPLIT_ENABLED: (p) => {
+    if (!isNumber(p.hourlyRateCents) || !isNumber(p.durationMinutes)) {
+      invalidPayload("SPLIT_ENABLED");
+    }
+    return {
+      type: "SPLIT_ENABLED",
+      hourlyRateCents: p.hourlyRateCents,
+      durationMinutes: p.durationMinutes,
+    };
+  },
   MATCH_ENDED: (_p) => ({ type: "MATCH_ENDED" }),
 };
 
