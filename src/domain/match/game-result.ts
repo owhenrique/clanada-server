@@ -1,5 +1,5 @@
 import { DomainError } from "../../shared/errors/domain-error";
-import { requireState, recordingIdFactory } from "./support";
+import { requireState, recordingIdFactory, teamNamesForEvent } from "./support";
 import { compactQueue, assignBibs, usedColors } from "./lineup";
 import type {
   Team,
@@ -119,13 +119,14 @@ export function decideGameWon(
     throw new DomainError("TEAM_NOT_ON_FIELD");
   }
   const factory = recordingIdFactory(ctx.nextId);
-  applyGameResult(current, loserTeamId, factory.createId);
+  const next = applyGameResult(current, loserTeamId, factory.createId);
   return {
     event: {
       type: "GAME_WON",
       loserTeamId,
       decidedBy,
       newTeamIds: factory.ids,
+      ...teamNamesForEvent(current, next, ctx.random),
     },
   };
 }
@@ -154,6 +155,7 @@ export function decideDraw(
       type: "GAME_DRAWN",
       firstLeaverTeamId: outcome.firstLeaverTeamId,
       newTeamIds: factory.ids,
+      ...teamNamesForEvent(current, outcome.state, ctx.random),
     },
   };
 }

@@ -1,5 +1,5 @@
 import { DomainError } from "../../shared/errors/domain-error";
-import { at, requireState, recordingIdFactory } from "./support";
+import { at, requireState, recordingIdFactory, teamNamesForEvent } from "./support";
 import { normalizeName } from "./players";
 import { compactQueue, assignBibs, usedColors } from "./lineup";
 import { locatePlayer } from "./team-edits";
@@ -147,12 +147,13 @@ export function decideJoin(
   const current = requireState(state);
   const player = { id: ctx.nextId(), name: normalizeName(command.name) };
   const factory = recordingIdFactory(ctx.nextId);
-  playerJoins(current, player, factory.createId);
+  const next = playerJoins(current, player, factory.createId);
   return {
     event: {
       type: "PLAYER_JOINED",
       player,
       newTeamIds: factory.ids,
+      ...teamNamesForEvent(current, next, ctx.random),
     },
   };
 }
@@ -194,15 +195,19 @@ export function decideLeave(
   if (command.fallback !== "reduce-team-size") {
     throw new DomainError("NO_DONOR_AVAILABLE");
   }
+  if (current.config.teamSize <= 1) {
+    throw new DomainError("TEAM_SIZE_NOT_ALLOWED");
+  }
 
   const factory = recordingIdFactory(ctx.nextId);
-  playerLeavesWithReducedTeamSize(current, command.playerId, factory.createId);
+  const next = playerLeavesWithReducedTeamSize(current, command.playerId, factory.createId);
   return {
     event: {
       type: "PLAYER_LEFT",
       playerId: command.playerId,
       fallback: "reduce-team-size",
       newTeamIds: factory.ids,
+      ...teamNamesForEvent(current, next, ctx.random),
     },
   };
 }

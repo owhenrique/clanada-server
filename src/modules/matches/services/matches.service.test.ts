@@ -234,10 +234,26 @@ describe("MatchesService", () => {
     expect(view.teams).toHaveLength(2);
     expect(view.teams[0]?.players).toHaveLength(2);
     expect(view.teams[1]?.players).toHaveLength(2);
+    const teamNames = view.teams.map((team) => team.name);
+    expect(teamNames.every((name) => typeof name === "string")).toBe(true);
+    expect(new Set(teamNames).size).toBe(2);
     expect(view.queue).toEqual([]);
     expect(view.canUndo).toBe(false);
     expect(view.timer).toEqual({ startedAt: null, elapsedMs: 0 });
     expect(view.serverNow).toBe("2026-09-22T12:00:00.000Z");
+  });
+
+  it("CEN-1b: create leaves the team without a free name as null", async () => {
+    const manyNames = Array.from({ length: 42 }, (_, index) => `Jogador ${index}`);
+    const { service } = makeService();
+
+    const view = await service.create({ config, playerNames: manyNames });
+
+    expect(view.teams).toHaveLength(21);
+    const names = view.teams.map((team) => team.name);
+    expect(names.filter((name) => name !== null)).toHaveLength(20);
+    expect(new Set(names).size).toBe(21);
+    expect(names[20]).toBeNull();
   });
 
   it("CEN-2: create rejects duplicate names without persisting anything", async () => {
@@ -1366,6 +1382,10 @@ describe("MatchesService timer (S8)", () => {
       winnerTeamId: started.teams[0]?.id,
     });
     expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
+    expect(games[0]?.teams.map((team) => team.name)).toEqual([
+      started.teams[0]?.name,
+      started.teams[1]?.name,
+    ]);
     expect(games[0]?.teams.map((team) => team.players)).toEqual([
       started.teams[0]?.players,
       started.teams[1]?.players,

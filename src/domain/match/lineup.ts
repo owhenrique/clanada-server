@@ -1,5 +1,12 @@
 import { DomainError } from "../../shared/errors/domain-error";
-import { at, shuffle, requireState, recordingIdFactory } from "./support";
+import {
+  at,
+  shuffle,
+  requireState,
+  recordingIdFactory,
+  idsFrom,
+  teamNamesForEvent,
+} from "./support";
 import { normalizeName, hasUnresolvedDuplicates } from "./players";
 import {
   resolveRuleToggles,
@@ -32,6 +39,7 @@ export function formInitialState(
       id: teamId(index),
       players: players.slice(start, start + config.teamSize),
       color: config.colors[index] ?? null,
+      name: null,
       gameStreak: 0,
     });
   }
@@ -52,6 +60,7 @@ export function compactQueue(
       id: createTeamId(),
       players: remaining.slice(0, teamSize),
       color: null,
+      name: null,
       gameStreak: 0,
     });
     remaining = remaining.slice(teamSize);
@@ -143,12 +152,14 @@ export function decideCreate(
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
   }
+  const next = formInitialState(order, config, idsFrom(factory.ids));
   return {
     event: {
       type: "MATCH_CREATED",
       config,
       players: order,
       teamIds: factory.ids,
+      ...teamNamesForEvent(null, next, ctx.random),
     },
   };
 }
@@ -185,11 +196,13 @@ export function decideReshuffle(
   for (let i = 0; i < fullTeams; i++) {
     factory.createId();
   }
+  const next = formInitialState(order, current.config, idsFrom(factory.ids));
   return {
     event: {
       type: "RESHUFFLED",
       order: order.map((player) => player.id),
       teamIds: factory.ids,
+      ...teamNamesForEvent(current, next, ctx.random),
     },
   };
 }

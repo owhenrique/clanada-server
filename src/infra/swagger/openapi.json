@@ -1114,6 +1114,10 @@
             "type": "string",
             "nullable": true
           },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
           "gameStreak": {
             "type": "number"
           }
@@ -1122,6 +1126,7 @@
           "id",
           "players",
           "color",
+          "name",
           "gameStreak"
         ]
       },
@@ -1210,6 +1215,10 @@
             "type": "string",
             "nullable": true
           },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
           "players": {
             "type": "array",
             "items": {
@@ -1220,6 +1229,7 @@
         "required": [
           "teamId",
           "color",
+          "name",
           "players"
         ]
       },

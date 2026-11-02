@@ -218,6 +218,7 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
+    name: null,
     gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
@@ -374,6 +375,7 @@ describe("CEN-9/CEN-10: decideWin", () => {
     }
     expect(result.event.decidedBy).toBe("match");
     expect(result.event.newTeamIds).toEqual(["n0"]);
+    expect(result.event.teamNames).toEqual(["Atacadão"]);
   });
 
   it("without a queue, records no new team ids", () => {
@@ -400,6 +402,7 @@ function fullTeam(id: string): Team {
   return {
     id,
     color: null,
+    name: null,
     gameStreak: 0,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
@@ -457,6 +460,8 @@ describe("CEN-11/CEN-12: decideDraw", () => {
     }
     expect(high.event.firstLeaverTeamId).toBe("t1");
     expect(high.event.newTeamIds).toEqual(["n0", "n1"]);
+    expect(high.event.teamNames).toHaveLength(2);
+    expect(new Set(high.event.teamNames ?? []).size).toBe(2);
   });
 });
 

@@ -1,5 +1,5 @@
 import { DomainError } from "../../shared/errors/domain-error";
-import { at, requireState, recordingIdFactory } from "./support";
+import { at, requireState, recordingIdFactory, teamNamesForEvent } from "./support";
 import { compactQueue, assignBibs, usedColors } from "./lineup";
 import type { Player, Team, MatchState, Command, CommandContext, DecideResult } from "./model";
 
@@ -205,8 +205,8 @@ export function decideChangeTeamSize(
   }
 
   const factory = recordingIdFactory(ctx.nextId);
-  const result = changeTeamSize(current, command.teamSize, factory.createId);
-  if (result === null) {
+  const next = changeTeamSize(current, command.teamSize, factory.createId);
+  if (next === null) {
     throw new DomainError("TEAM_SIZE_NOT_ALLOWED");
   }
   return {
@@ -214,6 +214,7 @@ export function decideChangeTeamSize(
       type: "TEAM_SIZE_CHANGED",
       teamSize: command.teamSize,
       newTeamIds: factory.ids,
+      ...teamNamesForEvent(current, next, ctx.random),
     },
   };
 }

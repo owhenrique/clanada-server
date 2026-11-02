@@ -77,6 +77,7 @@ describe("projectGameHistory", () => {
           {
             teamId: "q1",
             color: "azul",
+            name: "Atacadão",
             players: [
               { id: "p0", name: "Ana" },
               { id: "p1", name: "Bia" },
@@ -85,6 +86,7 @@ describe("projectGameHistory", () => {
           {
             teamId: "q2",
             color: "vermelho",
+            name: "Tatico",
             players: [
               { id: "p2", name: "Caio" },
               { id: "p3", name: "Duda" },
@@ -93,6 +95,27 @@ describe("projectGameHistory", () => {
         ],
       },
     ]);
+  });
+
+  it("CEN-1b: records a null team name when the event has no free name", () => {
+    const events = history([
+      {
+        type: "MATCH_CREATED",
+        config,
+        players: makePlayers(6),
+        teamIds: ["q1", "q2", "q3"],
+        teamNames: [null, null, null],
+      },
+      { type: "MATCH_STARTED" },
+      {
+        type: "GAME_WON",
+        loserTeamId: "q2",
+        decidedBy: "match",
+        newTeamIds: [],
+      },
+    ]);
+
+    expect(projectGameHistory(events)[0]?.teams.map((team) => team.name)).toEqual([null, null]);
   });
 
   it("CEN-2: records a penalties win with the other on-field team as winner", () => {
@@ -134,6 +157,7 @@ describe("projectGameHistory", () => {
       {
         teamId: "q1",
         color: "azul",
+        name: "Atacadão",
         players: [
           { id: "p0", name: "Ana" },
           { id: "p1", name: "Bia" },
@@ -142,6 +166,7 @@ describe("projectGameHistory", () => {
       {
         teamId: "q2",
         color: "vermelho",
+        name: "Tatico",
         players: [
           { id: "p2", name: "Caio" },
           { id: "p3", name: "Duda" },
@@ -179,6 +204,7 @@ describe("projectGameHistory", () => {
     expect(records[0]?.teams[0]).toEqual({
       teamId: "q1",
       color: "azul",
+      name: "Atacadão",
       players: [
         { id: "p0", name: "Ana" },
         { id: "p1", name: "Bia" },
@@ -187,6 +213,7 @@ describe("projectGameHistory", () => {
     expect(records[1]?.teams[0]).toEqual({
       teamId: "q1",
       color: "azul",
+      name: "Atacadão",
       players: [
         { id: "p1", name: "Bia" },
         { id: "p3", name: "Duda" },

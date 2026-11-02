@@ -10,6 +10,7 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
+    name: null,
     gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
@@ -404,6 +405,24 @@ describe("decideChangeTeamSize accepts a valid change", () => {
       type: "TEAM_SIZE_CHANGED",
       teamSize: 4,
       newTeamIds: [],
+    });
+  });
+
+  it("records drawn names for the teams formed by the change", () => {
+    const state = activeState(12, 5);
+    const result = decideChangeTeamSize(
+      state,
+      { type: "changeTeamSize", teamSize: 4 },
+      ctx(false),
+    );
+    if (!("event" in result)) {
+      throw new Error("expected an event");
+    }
+    expect(result.event).toEqual({
+      type: "TEAM_SIZE_CHANGED",
+      teamSize: 4,
+      newTeamIds: ["tNovo"],
+      teamNames: ["Atacadão"],
     });
   });
 });

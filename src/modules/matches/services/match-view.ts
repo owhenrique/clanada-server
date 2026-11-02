@@ -23,6 +23,9 @@ export class TeamView {
   @ApiProperty({ nullable: true, type: String })
   color!: string | null;
 
+  @ApiProperty({ nullable: true, type: String })
+  name!: string | null;
+
   @ApiProperty()
   gameStreak!: number;
 }
@@ -84,7 +87,7 @@ export function toMatchView(
     status: stored.status,
     version: stored.version,
     config: stored.snapshot.config,
-    teams: stored.snapshot.teams,
+    teams: stored.snapshot.teams.map((team) => ({ ...team, name: team.name ?? null })),
     queue: stored.snapshot.queue,
     timer: {
       startedAt: stored.timer.startedAt === null ? null : stored.timer.startedAt.toISOString(),

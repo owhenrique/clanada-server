@@ -10,7 +10,7 @@ import { findDonorIndex } from "./roster";
 import { DomainError } from "../../shared/errors/domain-error";
 
 function mkTeam(id: string, color: string | null, players: Player[]): Team {
-  return { id, color, gameStreak: 0, players };
+  return { id, color, name: null, gameStreak: 0, players };
 }
 
 function mkState(teams: Team[], queue: Player[], colors: string[]): MatchState {
@@ -34,6 +34,11 @@ function fullTeam(id: string, color: string | null): Team {
     color,
     Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   );
+}
+
+function assertUniqueTeamNames(state: MatchState): void {
+  const names = state.teams.flatMap((team) => (team.name === null ? [] : [team.name]));
+  expect(new Set(names).size).toBe(names.length);
 }
 
 describe("CEN-21 a CEN-26: assertValidState", () => {
@@ -238,6 +243,7 @@ describe("CEN-28 (S3) / CEN-14 (S4): property — 500 valid random commands neve
     const events: Event[] = [createResult.event];
     let state = applyEvent(null, createResult.event);
     assertValidState(state);
+    assertUniqueTeamNames(state);
 
     for (let step = 0; step < 500; step++) {
       const command = pickCommand(state, rng);
@@ -256,6 +262,7 @@ describe("CEN-28 (S3) / CEN-14 (S4): property — 500 valid random commands neve
       events.push(result.event);
       state = applyEvent(state, result.event);
       assertValidState(state);
+      assertUniqueTeamNames(state);
     }
 
     expect(events.length).toBeGreaterThan(1);
