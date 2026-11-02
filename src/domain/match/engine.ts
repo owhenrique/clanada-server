@@ -4,6 +4,7 @@ import { formInitialState, flattenPlayers, decideCreate, decideSetup, decideResh
 import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
 import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
 import { decideEnableSplit, enableSplit } from "./split";
+import { decideAddColors, addColors } from "./colors";
 import {
   playerJoins,
   playerLeaves,
@@ -75,6 +76,7 @@ const commandHandlers: Record<Command["type"], CommandHandler> = {
   changeTeamSize: decideChangeTeamSize as CommandHandler,
   enableSplit: decideEnableSplit as CommandHandler,
   changeRules: decideChangeRules as CommandHandler,
+  addColors: decideAddColors as CommandHandler,
   end: decideEnd as CommandHandler,
 };
 
@@ -92,6 +94,7 @@ const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   changeTeamSize: ["ACTIVE"],
   enableSplit: ["ACTIVE"],
   changeRules: ["ACTIVE"],
+  addColors: ["ACTIVE"],
   end: ["ACTIVE"],
 };
 
@@ -227,6 +230,13 @@ function handleRulesChanged(
   return { ...current, config: { ...current.config, ruleToggles: event.ruleToggles } };
 }
 
+function handleColorsAdded(
+  state: MatchState | null,
+  event: Extract<Event, { type: "COLORS_ADDED" }>,
+): MatchState {
+  return addColors(requireState(state), event);
+}
+
 function handleMatchEnded(state: MatchState | null): MatchState {
   return { ...requireState(state), status: "ENDED" };
 }
@@ -251,6 +261,7 @@ const eventHandlers: HandlerMap = {
   TEAM_SIZE_CHANGED: handleTeamSizeChanged,
   SPLIT_ENABLED: handleSplitEnabled,
   RULES_CHANGED: handleRulesChanged,
+  COLORS_ADDED: handleColorsAdded,
   MATCH_ENDED: handleMatchEnded,
 };
 
