@@ -642,6 +642,17 @@ describe("E5: draw without penalties (drawKeepsVeteran)", () => {
     ).toThrow(DomainError);
   });
 
+  it("the veteran survives a team size change and still stays on the next draw", () => {
+    const afterWin = run(started(true), { type: "win", loserTeamId: "t1" });
+    const resized = run(afterWin, { type: "changeTeamSize", teamSize: 3 });
+    const state = replay(resized);
+    expect(state.teams.map((t) => t.id)).toEqual(["t0", "t2"]);
+    expect(state.veteranTeamId).toBe("t0");
+    const events = run(resized, { type: "draw" });
+    expect(events.at(-1)).toMatchObject({ type: "GAME_WON", loserTeamId: "t2", decidedBy: "draw" });
+    expect(replay(events).teams.map((t) => t.id)).toEqual(["t0", "t2"]);
+  });
+
   it("CA-7: undoing the draw restores the previous state, even with a later rule change", () => {
     const afterWin = run(started(true), { type: "win", loserTeamId: "t1" });
     const before = replay(afterWin);
