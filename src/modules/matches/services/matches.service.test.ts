@@ -2294,3 +2294,95 @@ describe("MatchesService court split", () => {
     expect(view.perPersonCents).toBe(1300);
   });
 });
+
+describe("MatchesService enable split during the match", () => {
+  const names = ["Ana", "Beto", "Caio", "Duda", "Edu", "Fabio", "Gabi"];
+  const enable = { type: "enableSplit", hourlyRateCents: 10000, durationMinutes: 120 } as const;
+
+  async function startedMatch(clock: MutableClock): Promise<{
+    service: MatchesService;
+    code: string;
+    started: MatchView;
+    startedAt: Date;
+  }> {
+    const { service, repository } = makeService({ clock });
+    const created = await service.create({ config, playerNames: names });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const stored = await repository.findByCode(created.code);
+    const events = await repository.listActiveEvents(stored?.id ?? "");
+    const startedAt = events.find((entry) => entry.event.type === "MATCH_STARTED")?.createdAt;
+    if (startedAt === undefined) {
+      throw new Error("missing MATCH_STARTED event");
+    }
+    clock.advance(startedAt.getTime() - clock.now().getTime());
+    return { service, code: created.code, started, startedAt };
+  }
+
+  it("enables before half and only releases the division at half", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, code, started, startedAt } = await startedMatch(clock);
+
+    const view = asView(await service.execute(code, started.version, enable));
+
+    expect(view.config.split).toEqual({ enabled: true, hourlyRateCents: 10000, durationMinutes: 120 });
+    expect(view.splitDueAt).toBe(new Date(startedAt.getTime() + 60 * 60_000).toISOString());
+    await expect(service.getSplit(code)).rejects.toMatchObject({ code: "SPLIT_NOT_READY" });
+  });
+
+  it("releases the division right away when enabled after half", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, code, started } = await startedMatch(clock);
+    clock.advance(61 * 60_000);
+
+    const view = asView(await service.execute(code, started.version, enable));
+    const split = await service.getSplit(code);
+
+    expect(Date.parse(view.splitDueAt ?? "")).toBeLessThan(clock.now().getTime());
+    expect(split.payerCount).toBe(7);
+  });
+
+  it("lists a player who already left as a payer", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, code, started } = await startedMatch(clock);
+    const leaver = started.queue[0];
+    if (leaver === undefined) {
+      throw new Error("expected a queued player");
+    }
+    const leaverId = leaver.id;
+    const left = asView(
+      await service.execute(code, started.version, { type: "leave", playerId: leaverId }),
+    );
+    clock.advance(61 * 60_000);
+    asView(await service.execute(code, left.version, enable));
+
+    const split = await service.getSplit(code);
+
+    const departed = split.players.find((player) => player.id === leaverId);
+    expect(departed?.pays).toBe(true);
+    expect(split.payerCount).toBe(7);
+  });
+
+  it("rejects enabling twice and invalid values", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, code, started } = await startedMatch(clock);
+    await expect(
+      service.execute(code, started.version, { ...enable, hourlyRateCents: 0 }),
+    ).rejects.toMatchObject({ code: "SPLIT_INVALID_CONFIG" });
+    const view = asView(await service.execute(code, started.version, enable));
+    await expect(service.execute(code, view.version, enable)).rejects.toMatchObject({
+      code: "SPLIT_ALREADY_ENABLED",
+    });
+  });
+
+  it("undoes the activation", async () => {
+    const clock = new MutableClock(new Date("2026-09-22T12:00:00.000Z"));
+    const { service, code, started } = await startedMatch(clock);
+    const view = asView(await service.execute(code, started.version, enable));
+    expect(view.canUndo).toBe(true);
+
+    const undone = await service.undo(code, view.version);
+
+    expect(undone.config.split.enabled).toBe(false);
+    expect(undone.splitDueAt).toBeNull();
+  });
+});

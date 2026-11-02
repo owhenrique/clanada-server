@@ -9,6 +9,12 @@ const legacyPayload = {
 };
 
 describe("event codec", () => {
+  it("E3: round-trips SPLIT_ENABLED", () => {
+    const event = { type: "SPLIT_ENABLED", hourlyRateCents: 12000, durationMinutes: 90 } as const;
+    expect(decodeEvent("SPLIT_ENABLED", encodeEventPayload(event))).toEqual(event);
+    expect(() => decodeEvent("SPLIT_ENABLED", { hourlyRateCents: "x" })).toThrow();
+  });
+
   it("F4 CEN-9: reads a legacy MATCH_CREATED without rule toggles as all rules off", () => {
     const event = decodeEvent("MATCH_CREATED", legacyPayload);
     const state = applyEvent(null, event);
