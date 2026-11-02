@@ -1,5 +1,5 @@
 import { DomainError } from "../../shared/errors/domain-error";
-import { requireState, idsFrom } from "./support";
+import { requireState, idsFrom, assignTeamNames } from "./support";
 import { formInitialState, flattenPlayers, decideCreate, decideSetup, decideReshuffle } from "./lineup";
 import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
 import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
@@ -219,7 +219,9 @@ export function applyEvent(state: MatchState | null, event: Event): MatchState {
     state: MatchState | null,
     event: Event,
   ) => MatchState;
-  return handler(state, event);
+  const next = handler(state, event);
+  const recorded = "teamNames" in event ? event.teamNames : undefined;
+  return assignTeamNames(state, next, recorded);
 }
 
 export function replay(events: readonly Event[]): MatchState {

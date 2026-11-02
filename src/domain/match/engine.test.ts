@@ -5,6 +5,7 @@ import type { CommandContext, MatchState, Event, Player, MatchConfig } from "./m
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { decide, decideStart, decideEnd, applyEvent, replay } from "./engine";
 import { formInitialState } from "./lineup";
+import { TEAM_NAMES } from "./team-names";
 
 function stateWithStatus(status: MatchState["status"]): MatchState {
   return {
@@ -344,5 +345,129 @@ describe("CEN-27: replay is deterministic", () => {
     const first = replay(events);
     const second = replay(events);
     expect(second).toEqual(first);
+  });
+});
+
+describe("E1: team names", () => {
+  const twoColorConfig: MatchConfig = { ...config, colors: ["verde", "vermelho"] };
+
+  it("names the teams of a legacy MATCH_CREATED in list order", () => {
+    const state = applyEvent(null, created(makePlayers(12), ["t0", "t1"]));
+    expect(state.teams.map((team) => team.name)).toEqual(["Atacadão", "Tatico"]);
+  });
+
+  it("keeps the name when a waiting team enters and its bib changes", () => {
+    let state = applyEvent(null, {
+      type: "MATCH_CREATED",
+      config: twoColorConfig,
+      players: makePlayers(20),
+      teamIds: ["t0", "t1", "t2", "t3"],
+    });
+    state = applyEvent(state, { type: "MATCH_STARTED" });
+    expect(state.teams.map((team) => team.color)).toEqual(["verde", "vermelho", null, null]);
+
+    const next = applyEvent(state, {
+      type: "GAME_WON",
+      loserTeamId: "t0",
+      decidedBy: "match",
+      newTeamIds: [],
+    });
+
+    expect(next.teams.map((team) => team.id)).toEqual(["t1", "t2", "t3", "t0"]);
+    expect(next.teams.map((team) => team.name)).toEqual([
+      "Tatico",
+      "Assaí",
+      "Carrefour",
+      "Atacadão",
+    ]);
+    expect(next.teams[1]?.color).toBe("verde");
+    expect(next.teams[1]?.name).toBe("Assaí");
+  });
+
+  it("returns a dissolved team's name to the newly formed team", () => {
+    let state = applyEvent(null, created(makePlayers(22), ["t0", "t1", "t2", "t3"]));
+    state = applyEvent(state, { type: "MATCH_STARTED" });
+
+    const next = applyEvent(state, {
+      type: "GAME_WON",
+      loserTeamId: "t0",
+      decidedBy: "match",
+      newTeamIds: ["n0"],
+    });
+
+    expect(next.teams.map((team) => team.id)).toEqual(["t1", "t2", "t3", "n0"]);
+    expect(next.teams.map((team) => team.name)).toEqual([
+      "Tatico",
+      "Assaí",
+      "Carrefour",
+      "Atacadão",
+    ]);
+    expect(new Set(next.teams.map((team) => team.name)).size).toBe(next.teams.length);
+  });
+
+  it("leaves the 21st active team without a name", () => {
+    const players = makePlayers(21);
+    const state = applyEvent(null, {
+      type: "MATCH_CREATED",
+      config: { ...config, teamSize: 1, colors: [] },
+      players,
+      teamIds: players.map((_, index) => `t${index}`),
+    });
+
+    expect(state.teams).toHaveLength(21);
+    expect(state.teams.slice(0, 20).map((team) => team.name)).toEqual([...TEAM_NAMES]);
+    expect(state.teams[20]?.name).toBeNull();
+  });
+
+  it("replays a legacy log without teamNames deterministically, taking no random source", () => {
+    const events: Event[] = [
+      {
+        type: "MATCH_CREATED",
+        config,
+        players: makePlayers(22),
+        teamIds: ["t0", "t1", "t2", "t3"],
+      },
+      { type: "MATCH_STARTED" },
+      {
+        type: "GAME_WON",
+        loserTeamId: "t0",
+        decidedBy: "match",
+        newTeamIds: ["n0"],
+      },
+    ];
+
+    const first = replay(events);
+    const second = replay(events);
+
+    expect(second).toEqual(first);
+    expect(first.teams.map((team) => team.name)).toEqual([
+      "Tatico",
+      "Assaí",
+      "Carrefour",
+      "Atacadão",
+    ]);
+    expect(first.queue.map((player) => player.id)).toEqual(["p3", "p4"]);
+  });
+
+  it("replays the recorded teamNames exactly and keeps the surviving team's name", () => {
+    const createdState = applyEvent(null, {
+      type: "MATCH_CREATED",
+      config,
+      players: makePlayers(12),
+      teamIds: ["t0", "t1"],
+      teamNames: ["Big Box", null],
+    });
+    expect(createdState.teams.map((team) => team.name)).toEqual(["Big Box", null]);
+
+    const next = applyEvent(createdState, {
+      type: "GAME_WON",
+      loserTeamId: "t0",
+      decidedBy: "match",
+      newTeamIds: ["n0"],
+      teamNames: ["Comper"],
+    });
+
+    expect(next.teams.map((team) => team.id)).toEqual(["t1", "n0"]);
+    expect(next.teams.map((team) => team.name)).toEqual([null, "Comper"]);
   });
 });

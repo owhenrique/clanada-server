@@ -218,6 +218,7 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
+    name: null,
     gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
@@ -400,6 +401,7 @@ function fullTeam(id: string): Team {
   return {
     id,
     color: null,
+    name: null,
     gameStreak: 0,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };

@@ -88,6 +88,7 @@ export type Team = {
   id: string;
   players: Player[];
   color: string | null;
+  name: string | null;
   gameStreak: number;
 };
 
@@ -118,6 +119,7 @@ export type MatchCreatedEvent = {
   config: MatchConfig;
   players: Player[];
   teamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type MatchSetUpEvent = Omit<MatchCreatedEvent, "type"> & {
@@ -128,6 +130,7 @@ export type ReshuffledEvent = {
   type: "RESHUFFLED";
   order: string[];
   teamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type PlayersSwappedEvent = {
@@ -143,18 +146,21 @@ export type GameWonEvent = {
   loserTeamId: string;
   decidedBy: "match" | "penalties";
   newTeamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type GameDrawnEvent = {
   type: "GAME_DRAWN";
   firstLeaverTeamId: string;
   newTeamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type PlayerJoinedEvent = {
   type: "PLAYER_JOINED";
   player: Player;
   newTeamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type PlayerLeftEvent = {
@@ -162,12 +168,14 @@ export type PlayerLeftEvent = {
   playerId: string;
   fallback: "none" | "reduce-team-size";
   newTeamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type TeamSizeChangedEvent = {
   type: "TEAM_SIZE_CHANGED";
   teamSize: number;
   newTeamIds: string[];
+  teamNames?: (string | null)[];
 };
 
 export type MatchEndedEvent = { type: "MATCH_ENDED" };

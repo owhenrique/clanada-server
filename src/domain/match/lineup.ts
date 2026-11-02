@@ -32,6 +32,7 @@ export function formInitialState(
       id: teamId(index),
       players: players.slice(start, start + config.teamSize),
       color: config.colors[index] ?? null,
+      name: null,
       gameStreak: 0,
     });
   }
@@ -52,6 +53,7 @@ export function compactQueue(
       id: createTeamId(),
       players: remaining.slice(0, teamSize),
       color: null,
+      name: null,
       gameStreak: 0,
     });
     remaining = remaining.slice(teamSize);

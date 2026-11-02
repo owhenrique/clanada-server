@@ -10,6 +10,7 @@ function mkTeam(id: string, color: string | null, gameStreak: number): Team {
   return {
     id,
     color,
+    name: null,
     gameStreak,
     players: Array.from({ length: 5 }, (_, i) => mkPlayer(`${id}-${i}`)),
   };
