@@ -21,6 +21,7 @@ describe("CEN-20: UNDOABLE_EVENTS", () => {
         "PLAYER_LEFT",
         "TEAM_SIZE_CHANGED",
         "SPLIT_ENABLED",
+        "COLORS_ADDED",
       ].sort(),
     );
   });

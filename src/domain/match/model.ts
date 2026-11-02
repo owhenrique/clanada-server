@@ -194,6 +194,11 @@ export type RulesChangedEvent = {
   ruleToggles: RuleToggles;
 };
 
+export type ColorsAddedEvent = {
+  type: "COLORS_ADDED";
+  colors: string[];
+};
+
 export type MatchEndedEvent = { type: "MATCH_ENDED" };
 
 export type Event =
@@ -209,6 +214,7 @@ export type Event =
   | TeamSizeChangedEvent
   | SplitEnabledEvent
   | RulesChangedEvent
+  | ColorsAddedEvent
   | MatchEndedEvent;
 
 export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
@@ -219,6 +225,7 @@ export const UNDOABLE_EVENTS: ReadonlySet<Event["type"]> = new Set([
   "PLAYER_LEFT",
   "TEAM_SIZE_CHANGED",
   "SPLIT_ENABLED",
+  "COLORS_ADDED",
 ]);
 
 export type CommandContext = {
@@ -246,6 +253,7 @@ export type Command =
   | { type: "changeTeamSize"; teamSize: number }
   | { type: "enableSplit"; hourlyRateCents: number; durationMinutes: number }
   | { type: "changeRules"; ruleToggles: Partial<RuleToggles> }
+  | { type: "addColors"; colors: string[] }
   | { type: "end" };
 
 export type DecideResult = { event: Event } | { penaltiesRequired: true };

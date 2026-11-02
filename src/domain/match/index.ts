@@ -34,3 +34,4 @@ export type { SplitConfig } from "./model";
 export { DEFAULT_SPLIT_CONFIG, decodeSplitConfig, resolveSplitConfig } from "./model";
 export { computeSplit, projectDepartedPlayers, receivedLimitCents, splitDueAtMs } from "./split";
 export type { DepartedPlayer, SplitEntry, SplitTotals } from "./split";
+export { decideAddColors, addColors } from "./colors";

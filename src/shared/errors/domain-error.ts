@@ -16,6 +16,7 @@ export type DomainErrorCode =
   | "SPLIT_VALUE_EXCEEDS_TOTAL"
   | "SPLIT_ALREADY_ENABLED"
   | "SPLIT_INVALID_CONFIG"
+  | "COLORS_INVALID"
   | "TOO_MANY_LOOKUPS";
 
 export class DomainError extends Error {
