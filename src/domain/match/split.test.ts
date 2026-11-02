@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { HistoryEvent } from "./game-history";
 import type { Event, MatchConfig, Player } from "./model";
-import { DEFAULT_SPLIT_CONFIG } from "./model";
+import { DEFAULT_SPLIT_CONFIG, UNDOABLE_EVENTS } from "./model";
+import { applyEvent, decide, replay } from "./engine";
+import { idGen, makePlayers } from "./test-fixtures";
 import { computeSplit, projectDepartedPlayers, receivedLimitCents, splitDueAtMs } from "./split";
 import type { SplitEntry } from "./split";
 
@@ -210,5 +212,60 @@ describe("projectDepartedPlayers", () => {
 
   it("keeps a player out while their leave is not in the log", () => {
     expect(projectDepartedPlayers([created, joined])).toEqual([]);
+  });
+});
+
+describe("enableSplit", () => {
+  const baseConfig: MatchConfig = {
+    teamSize: 1,
+    colors: ["red", "blue"],
+    gameMinutes: 7,
+    ruleToggles: { arrivalPriority: true },
+    split: DEFAULT_SPLIT_CONFIG,
+  };
+  const players = makePlayers(2);
+  const ctx = { random: () => 0, nextId: idGen(), timerRunning: false };
+  const created = replay([
+    { type: "MATCH_CREATED", config: baseConfig, players, teamIds: ["t0", "t1"] },
+    { type: "MATCH_STARTED" },
+  ]);
+
+  it("enables the split with the given values", () => {
+    const result = decide(created, { type: "enableSplit", hourlyRateCents: 15000, durationMinutes: 90 }, ctx);
+    if (!("event" in result)) {
+      throw new Error("expected event");
+    }
+    const next = applyEvent(created, result.event);
+    expect(next.config.split).toEqual({ enabled: true, hourlyRateCents: 15000, durationMinutes: 90 });
+  });
+
+  it("rejects values outside the configuration ranges", () => {
+    for (const [rate, minutes] of [[0, 120], [100001, 120], [10000, 20], [10000, 100]] as const) {
+      expect(() =>
+        decide(created, { type: "enableSplit", hourlyRateCents: rate, durationMinutes: minutes }, ctx),
+      ).toThrowError("SPLIT_INVALID_CONFIG");
+    }
+  });
+
+  it("rejects enabling twice", () => {
+    const enabled = applyEvent(created, {
+      type: "SPLIT_ENABLED",
+      hourlyRateCents: 10000,
+      durationMinutes: 120,
+    });
+    expect(() =>
+      decide(enabled, { type: "enableSplit", hourlyRateCents: 10000, durationMinutes: 120 }, ctx),
+    ).toThrowError("SPLIT_ALREADY_ENABLED");
+  });
+
+  it("rejects enabling outside an active match", () => {
+    const ended = applyEvent(created, { type: "MATCH_ENDED" });
+    expect(() =>
+      decide(ended, { type: "enableSplit", hourlyRateCents: 10000, durationMinutes: 120 }, ctx),
+    ).toThrowError("INVALID_STATUS");
+  });
+
+  it("is undoable", () => {
+    expect(UNDOABLE_EVENTS.has("SPLIT_ENABLED")).toBe(true);
   });
 });

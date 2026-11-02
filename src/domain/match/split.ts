@@ -1,5 +1,8 @@
+import { DomainError } from "../../shared/errors/domain-error";
 import type { HistoryEvent } from "./game-history";
-import type { Event } from "./model";
+import { isValidSplitDuration, isValidSplitRate } from "./model";
+import type { Command, CommandContext, DecideResult, Event, MatchState } from "./model";
+import { requireState } from "./support";
 
 export type SplitEntry = {
   pays: boolean;
@@ -68,4 +71,42 @@ export function projectDepartedPlayers(events: readonly HistoryEvent[]): Departe
     }
   }
   return departed;
+}
+
+export function decideEnableSplit(
+  state: MatchState | null,
+  command: Extract<Command, { type: "enableSplit" }>,
+  _ctx: CommandContext,
+): DecideResult {
+  const current = requireState(state);
+  if (current.config.split.enabled) {
+    throw new DomainError("SPLIT_ALREADY_ENABLED");
+  }
+  if (!isValidSplitRate(command.hourlyRateCents) || !isValidSplitDuration(command.durationMinutes)) {
+    throw new DomainError("SPLIT_INVALID_CONFIG");
+  }
+  return {
+    event: {
+      type: "SPLIT_ENABLED",
+      hourlyRateCents: command.hourlyRateCents,
+      durationMinutes: command.durationMinutes,
+    },
+  };
+}
+
+export function enableSplit(
+  state: MatchState,
+  event: Extract<Event, { type: "SPLIT_ENABLED" }>,
+): MatchState {
+  return {
+    ...state,
+    config: {
+      ...state.config,
+      split: {
+        enabled: true,
+        hourlyRateCents: event.hourlyRateCents,
+        durationMinutes: event.durationMinutes,
+      },
+    },
+  };
 }

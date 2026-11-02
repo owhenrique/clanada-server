@@ -3,6 +3,7 @@ import { requireState, idsFrom, assignTeamNames } from "./support";
 import { formInitialState, flattenPlayers, decideCreate, decideSetup, decideReshuffle } from "./lineup";
 import { applyGameResult, applyDraw, decideWin, decideDraw, decidePenalties } from "./game-result";
 import { swapPlayers, changeTeamSize, decideSwap, decideChangeTeamSize } from "./team-edits";
+import { decideEnableSplit, enableSplit } from "./split";
 import {
   playerJoins,
   playerLeaves,
@@ -59,6 +60,7 @@ const commandHandlers: Record<Command["type"], CommandHandler> = {
   join: decideJoin as CommandHandler,
   leave: decideLeave as CommandHandler,
   changeTeamSize: decideChangeTeamSize as CommandHandler,
+  enableSplit: decideEnableSplit as CommandHandler,
   end: decideEnd as CommandHandler,
 };
 
@@ -74,6 +76,7 @@ const allowedStatus: Record<Command["type"], MatchStatus[] | null> = {
   join: ["ACTIVE"],
   leave: ["ACTIVE"],
   changeTeamSize: ["ACTIVE"],
+  enableSplit: ["ACTIVE"],
   end: ["ACTIVE"],
 };
 
@@ -189,6 +192,13 @@ function handleTeamSizeChanged(
   return result;
 }
 
+function handleSplitEnabled(
+  state: MatchState | null,
+  event: Extract<Event, { type: "SPLIT_ENABLED" }>,
+): MatchState {
+  return enableSplit(requireState(state), event);
+}
+
 function handleMatchEnded(state: MatchState | null): MatchState {
   return { ...requireState(state), status: "ENDED" };
 }
@@ -211,6 +221,7 @@ const eventHandlers: HandlerMap = {
   PLAYER_JOINED: handlePlayerJoined,
   PLAYER_LEFT: handlePlayerLeft,
   TEAM_SIZE_CHANGED: handleTeamSizeChanged,
+  SPLIT_ENABLED: handleSplitEnabled,
   MATCH_ENDED: handleMatchEnded,
 };
 
