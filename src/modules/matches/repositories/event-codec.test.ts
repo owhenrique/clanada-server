@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_SPLIT_CONFIG, applyEvent } from "../../../domain/match";
-import { decodeEvent } from "./event-codec";
+import { decodeEvent, encodeEventPayload } from "./event-codec";
 
 const legacyPayload = {
   config: { teamSize: 5, colors: ["verde", "vermelho"], gameMinutes: 10 },
@@ -47,5 +47,55 @@ describe("event codec", () => {
       players: legacyPayload.players,
       teamIds: [],
     });
+  });
+
+  it("E1: keeps an optional teamNames array untouched", () => {
+    const event = decodeEvent("MATCH_CREATED", {
+      ...legacyPayload,
+      teamNames: ["Atacadão", null],
+    });
+    expect(event).toEqual({
+      type: "MATCH_CREATED",
+      config: {
+        ...legacyPayload.config,
+        ruleToggles: { arrivalPriority: false },
+        split: DEFAULT_SPLIT_CONFIG,
+      },
+      players: legacyPayload.players,
+      teamIds: [],
+      teamNames: ["Atacadão", null],
+    });
+  });
+
+  it("E1: decodes a legacy event without teamNames", () => {
+    const event = decodeEvent("GAME_WON", {
+      loserTeamId: "t0",
+      decidedBy: "match",
+      newTeamIds: [],
+    });
+    expect(event).toEqual({
+      type: "GAME_WON",
+      loserTeamId: "t0",
+      decidedBy: "match",
+      newTeamIds: [],
+    });
+    expect("teamNames" in event).toBe(false);
+  });
+
+  it("E1: rejects a malformed teamNames array", () => {
+    expect(() =>
+      decodeEvent("MATCH_CREATED", { ...legacyPayload, teamNames: ["Atacadão", 1] }),
+    ).toThrow('invariant: invalid persisted event payload for "MATCH_CREATED"');
+  });
+
+  it("E1: round-trips teamNames through encode and decode", () => {
+    const event = {
+      type: "GAME_WON" as const,
+      loserTeamId: "t0",
+      decidedBy: "match" as const,
+      newTeamIds: [],
+      teamNames: [null, "Atacadão"],
+    };
+    expect(decodeEvent(event.type, encodeEventPayload(event))).toEqual(event);
   });
 });

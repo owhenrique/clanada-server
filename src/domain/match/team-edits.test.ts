@@ -407,4 +407,22 @@ describe("decideChangeTeamSize accepts a valid change", () => {
       newTeamIds: [],
     });
   });
+
+  it("records drawn names for the teams formed by the change", () => {
+    const state = activeState(12, 5);
+    const result = decideChangeTeamSize(
+      state,
+      { type: "changeTeamSize", teamSize: 4 },
+      ctx(false),
+    );
+    if (!("event" in result)) {
+      throw new Error("expected an event");
+    }
+    expect(result.event).toEqual({
+      type: "TEAM_SIZE_CHANGED",
+      teamSize: 4,
+      newTeamIds: ["tNovo"],
+      teamNames: ["Atacadão"],
+    });
+  });
 });

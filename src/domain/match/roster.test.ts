@@ -302,6 +302,7 @@ describe("CEN-6: decideJoin completing the queue", () => {
       throw new Error("expected a PLAYER_JOINED event");
     }
     expect(result.event.newTeamIds).toEqual(["tNovo"]);
+    expect(result.event.teamNames).toEqual(["Atacadão"]);
   });
 });
 
@@ -406,5 +407,32 @@ describe("CEN-4: decideLeave with fallback reduce-team-size", () => {
       fallback: "reduce-team-size",
       newTeamIds: [],
     });
+  });
+
+  it("rejects the reduction when the teams already have one player", () => {
+    const state = {
+      ...formInitialState(
+        makePlayers(3),
+        {
+          teamSize: 1,
+          colors: ["verde", "vermelho", "azul"],
+          gameMinutes: 10,
+          ruleToggles: { arrivalPriority: false },
+          split: DEFAULT_SPLIT_CONFIG,
+        },
+        (i) => `t${i}`,
+      ),
+      status: "ACTIVE" as const,
+    };
+    try {
+      decideLeave(
+        state,
+        { type: "leave", playerId: "p2", fallback: "reduce-team-size" },
+        ctx(false),
+      );
+      throw new Error("expected decideLeave to throw");
+    } catch (error) {
+      expect((error as DomainError).code).toBe("TEAM_SIZE_NOT_ALLOWED");
+    }
   });
 });

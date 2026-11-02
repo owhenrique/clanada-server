@@ -116,3 +116,12 @@ export function drawTeamNames(
   }
   return names;
 }
+
+export function teamNamesForEvent(
+  previous: MatchState | null,
+  next: MatchState,
+  rng: () => number,
+): { teamNames?: (string | null)[] } {
+  const names = drawTeamNames(previous, next, rng);
+  return names.length === 0 ? {} : { teamNames: names };
+}

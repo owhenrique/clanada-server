@@ -375,6 +375,7 @@ describe("CEN-9/CEN-10: decideWin", () => {
     }
     expect(result.event.decidedBy).toBe("match");
     expect(result.event.newTeamIds).toEqual(["n0"]);
+    expect(result.event.teamNames).toEqual(["Atacadão"]);
   });
 
   it("without a queue, records no new team ids", () => {
@@ -459,6 +460,8 @@ describe("CEN-11/CEN-12: decideDraw", () => {
     }
     expect(high.event.firstLeaverTeamId).toBe("t1");
     expect(high.event.newTeamIds).toEqual(["n0", "n1"]);
+    expect(high.event.teamNames).toHaveLength(2);
+    expect(new Set(high.event.teamNames ?? []).size).toBe(2);
   });
 });
 

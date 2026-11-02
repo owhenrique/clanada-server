@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { makePlayers } from "./test-fixtures";
 import { DomainError } from "../../shared/errors/domain-error";
-import type { CommandContext, MatchState, Event, Player, MatchConfig } from "./model";
+import type { CommandContext, MatchState, Event, Player, MatchConfig, DecideResult } from "./model";
 import { DEFAULT_SPLIT_CONFIG } from "./model";
 import { decide, decideStart, decideEnd, applyEvent, replay } from "./engine";
 import { formInitialState } from "./lineup";
@@ -469,5 +469,72 @@ describe("E1: team names", () => {
 
     expect(next.teams.map((team) => team.id)).toEqual(["t1", "n0"]);
     expect(next.teams.map((team) => team.name)).toEqual([null, "Comper"]);
+  });
+
+  function decisionEvent(result: DecideResult): Event {
+    if (!("event" in result)) {
+      throw new Error("expected an event");
+    }
+    return result.event;
+  }
+
+  function decidedLog(): { events: Event[]; before: MatchState } {
+    let nextId = 0;
+    const ctx: CommandContext = {
+      random: () => 0,
+      nextId: () => `n${nextId++}`,
+      timerRunning: false,
+    };
+    const created = decisionEvent(
+      decide(
+        null,
+        {
+          type: "create",
+          playerNames: Array.from({ length: 22 }, (_, index) => `Player${index}`),
+          config,
+        },
+        ctx,
+      ),
+    );
+    const started = decisionEvent(
+      decide(applyEvent(null, created), { type: "start" }, ctx),
+    );
+    const before = applyEvent(applyEvent(null, created), started);
+    const [firstTeam] = before.teams;
+    if (firstTeam === undefined) {
+      throw new Error("fixture needs an on-field team");
+    }
+    const won = decisionEvent(
+      decide(before, { type: "win", loserTeamId: firstTeam.id }, ctx),
+    );
+    return { events: [created, started, won], before };
+  }
+
+  it("replays the names drawn by the decisions", () => {
+    const { events, before } = decidedLog();
+    const last = events[events.length - 1];
+    if (last === undefined) {
+      throw new Error("fixture needs a last event");
+    }
+    const replayed = replay(events);
+    expect(replayed).toEqual(applyEvent(before, last));
+    expect(replayed.teams.map((team) => team.name)).toEqual([
+      "Tatico",
+      "Assaí",
+      "Carrefour",
+      "Atacadão",
+    ]);
+  });
+
+  it("restores the previous name when the last event is undone", () => {
+    const { events, before } = decidedLog();
+    const undone = replay(events.slice(0, -1));
+    expect(undone).toEqual(before);
+    expect(undone.teams.map((team) => team.name)).toEqual([
+      "Atacadão",
+      "Tatico",
+      "Assaí",
+      "Carrefour",
+    ]);
   });
 });

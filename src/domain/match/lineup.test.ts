@@ -296,10 +296,12 @@ describe("CEN-1: decideCreate", () => {
     }
     expect(result.event.teamIds).toEqual(["t0", "t1"]);
     expect(result.event.players).toHaveLength(12);
+    expect(result.event.teamNames).toEqual(["Atacadão", "Tatico"]);
 
     const stateA = applyEvent(null, result.event);
     const stateB = applyEvent(null, result.event);
     expect(stateB).toEqual(stateA);
+    expect(stateA.teams.map((team) => team.name)).toEqual(result.event.teamNames);
   });
 
   it("CEN-2: rejects duplicate names (case/space insensitive)", () => {
@@ -523,6 +525,11 @@ describe("CEN-4: decideReshuffle", () => {
     expect(result.event.teamIds).toEqual(["t2", "t3"]);
     expect(result.event.order).toHaveLength(12);
     expect(new Set(result.event.order)).toEqual(new Set(makePlayers(12).map((p) => p.id)));
+    expect(result.event.teamNames).toHaveLength(2);
+    expect(new Set(result.event.teamNames ?? []).size).toBe(2);
+    expect(applyEvent(state, result.event).teams.map((team) => team.name)).toEqual(
+      result.event.teamNames,
+    );
   });
 });
 

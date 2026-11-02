@@ -16,6 +16,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
+function isTeamNames(value: unknown): value is (string | null)[] {
+  return Array.isArray(value) && value.every((name) => name === null || isString(name));
+}
+
 function isPlayer(value: unknown): value is { id: string; name: string } {
   return isRecord(value) && isString(value.id) && isString(value.name);
 }
@@ -43,6 +47,16 @@ function invalidPayload(type: string): never {
   throw new Error(`invariant: invalid persisted event payload for "${type}"`);
 }
 
+function teamNamesField(type: string, value: unknown): { teamNames?: (string | null)[] } {
+  if (value === undefined) {
+    return {};
+  }
+  if (!isTeamNames(value)) {
+    invalidPayload(type);
+  }
+  return { teamNames: value };
+}
+
 function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, unknown>): Event {
   if (!isMatchConfig(p.config) || !isPlayerArray(p.players) || !isStringArray(p.teamIds)) {
     invalidPayload(type);
@@ -52,7 +66,13 @@ function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, 
     ruleToggles: decodeRuleToggles(p.config.ruleToggles),
     split: decodeSplitConfig(p.config.split),
   };
-  return { type, config, players: p.players, teamIds: p.teamIds };
+  return {
+    type,
+    config,
+    players: p.players,
+    teamIds: p.teamIds,
+    ...teamNamesField(type, p.teamNames),
+  };
 }
 
 type EventDecoder = (payload: Record<string, unknown>) => Event;
@@ -64,7 +84,12 @@ const decoders: Record<Event["type"], EventDecoder> = {
     if (!isStringArray(p.order) || !isStringArray(p.teamIds)) {
       invalidPayload("RESHUFFLED");
     }
-    return { type: "RESHUFFLED", order: p.order, teamIds: p.teamIds };
+    return {
+      type: "RESHUFFLED",
+      order: p.order,
+      teamIds: p.teamIds,
+      ...teamNamesField("RESHUFFLED", p.teamNames),
+    };
   },
   PLAYERS_SWAPPED: (p) => {
     if (!isString(p.playerAId) || !isString(p.playerBId)) {
@@ -90,6 +115,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
       loserTeamId: p.loserTeamId,
       decidedBy: p.decidedBy,
       newTeamIds: p.newTeamIds,
+      ...teamNamesField("GAME_WON", p.teamNames),
     };
   },
   GAME_DRAWN: (p) => {
@@ -100,6 +126,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
       type: "GAME_DRAWN",
       firstLeaverTeamId: p.firstLeaverTeamId,
       newTeamIds: p.newTeamIds,
+      ...teamNamesField("GAME_DRAWN", p.teamNames),
     };
   },
   PLAYER_JOINED: (p) => {
@@ -110,6 +137,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
       type: "PLAYER_JOINED",
       player: p.player,
       newTeamIds: p.newTeamIds,
+      ...teamNamesField("PLAYER_JOINED", p.teamNames),
     };
   },
   PLAYER_LEFT: (p) => {
@@ -125,6 +153,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
       playerId: p.playerId,
       fallback: p.fallback,
       newTeamIds: p.newTeamIds,
+      ...teamNamesField("PLAYER_LEFT", p.teamNames),
     };
   },
   TEAM_SIZE_CHANGED: (p) => {
@@ -135,6 +164,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
       type: "TEAM_SIZE_CHANGED",
       teamSize: p.teamSize,
       newTeamIds: p.newTeamIds,
+      ...teamNamesField("TEAM_SIZE_CHANGED", p.teamNames),
     };
   },
   MATCH_ENDED: (_p) => ({ type: "MATCH_ENDED" }),
