@@ -220,7 +220,7 @@ describe("enableSplit", () => {
     teamSize: 1,
     colors: ["red", "blue"],
     gameMinutes: 7,
-    ruleToggles: { arrivalPriority: true },
+    ruleToggles: { arrivalPriority: true, drawKeepsVeteran: false },
     split: DEFAULT_SPLIT_CONFIG,
   };
   const players = makePlayers(2);

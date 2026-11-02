@@ -28,6 +28,7 @@ import { CreateMatchDto } from "../dto/create-match.dto";
 import { JoinPlayerDto } from "../dto/join-player.dto";
 import { LeaveQueryDto } from "../dto/leave-query.dto";
 import { LoserTeamDto } from "../dto/loser-team.dto";
+import { RuleTogglesDto } from "../dto/rule-toggles.dto";
 import { SetSplitPlayerDto } from "../dto/set-split-player.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
 import { GameView } from "../services/game-view";
@@ -244,6 +245,21 @@ export class MatchesController {
     return this.matchesService.execute(code, version, {
       type: "changeTeamSize",
       teamSize: dto.teamSize,
+    });
+  }
+
+  @Put(":code/rules")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  changeRules(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: RuleTogglesDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, {
+      type: "changeRules",
+      ruleToggles: dto,
     });
   }
 

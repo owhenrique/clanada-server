@@ -19,6 +19,7 @@ import type {
   Command,
   CommandContext,
   DecideResult,
+  RuleToggles,
 } from "./model";
 
 export function decideStart(
@@ -38,13 +39,11 @@ export function decideChangeRules(
   command: Extract<Command, { type: "changeRules" }>,
   _ctx: CommandContext,
 ): DecideResult {
-  const current = requireState(state);
-  return {
-    event: {
-      type: "RULES_CHANGED",
-      ruleToggles: { ...current.config.ruleToggles, ...command.ruleToggles },
-    },
-  };
+  const ruleToggles = { ...requireState(state).config.ruleToggles };
+  for (const key of Object.keys(ruleToggles) as (keyof RuleToggles)[]) {
+    ruleToggles[key] = command.ruleToggles[key] ?? ruleToggles[key];
+  }
+  return { event: { type: "RULES_CHANGED", ruleToggles } };
 }
 
 export function decideEnd(

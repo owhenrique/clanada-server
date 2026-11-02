@@ -747,6 +747,57 @@
         ]
       }
     },
+    "/api/matches/{code}/rules": {
+      "put": {
+        "operationId": "MatchesController_changeRules",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleTogglesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
     "/api/matches/{code}/end": {
       "post": {
         "operationId": "MatchesController_end",
@@ -969,6 +1020,10 @@
           "arrivalPriority": {
             "type": "boolean",
             "description": "Padrão: true"
+          },
+          "drawKeepsVeteran": {
+            "type": "boolean",
+            "description": "Padrão: false"
           }
         }
       },
@@ -1061,10 +1116,14 @@
         "properties": {
           "arrivalPriority": {
             "type": "boolean"
+          },
+          "drawKeepsVeteran": {
+            "type": "boolean"
           }
         },
         "required": [
-          "arrivalPriority"
+          "arrivalPriority",
+          "drawKeepsVeteran"
         ]
       },
       "SplitConfigViewDto": {
@@ -1140,6 +1199,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "arrival": {
+            "type": "number"
           }
         },
         "required": [

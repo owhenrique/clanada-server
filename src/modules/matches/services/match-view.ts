@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { splitDueAtMs, type MatchStatus } from "../../../domain/match";
 import type { StoredEvent, StoredMatch } from "../repositories/matches.repository";
 import { MatchConfigViewDto } from "../dto/match-config.dto";
@@ -11,6 +11,9 @@ export class PlayerView {
 
   @ApiProperty()
   name!: string;
+
+  @ApiPropertyOptional()
+  arrival?: number;
 }
 
 export class TeamView {

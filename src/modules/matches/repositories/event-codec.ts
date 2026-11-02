@@ -1,4 +1,4 @@
-import { decodeSplitConfig, decodeRuleToggles, type Event } from "../../../domain/match";
+import { decodeSplitConfig, decodeRuleToggles, type Event, type Player } from "../../../domain/match";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -26,6 +26,11 @@ function isPlayer(value: unknown): value is { id: string; name: string } {
 
 function isPlayerArray(value: unknown): value is { id: string; name: string }[] {
   return Array.isArray(value) && value.every(isPlayer);
+}
+
+function toPlayer(value: { id: string; name: string; arrival?: unknown }): Player {
+  const { id, name, arrival } = value;
+  return isNumber(arrival) ? { id, name, arrival } : { id, name };
 }
 
 function isMatchConfig(value: unknown): value is {
@@ -69,7 +74,7 @@ function decodeLineup(type: "MATCH_CREATED" | "MATCH_SET_UP", p: Record<string, 
   return {
     type,
     config,
-    players: p.players,
+    players: p.players.map(toPlayer),
     teamIds: p.teamIds,
     ...teamNamesField(type, p.teamNames),
   };
@@ -105,7 +110,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
   GAME_WON: (p) => {
     if (
       !isString(p.loserTeamId) ||
-      (p.decidedBy !== "match" && p.decidedBy !== "penalties") ||
+      (p.decidedBy !== "match" && p.decidedBy !== "penalties" && p.decidedBy !== "draw") ||
       !isStringArray(p.newTeamIds)
     ) {
       invalidPayload("GAME_WON");
@@ -135,7 +140,7 @@ const decoders: Record<Event["type"], EventDecoder> = {
     }
     return {
       type: "PLAYER_JOINED",
-      player: p.player,
+      player: toPlayer(p.player),
       newTeamIds: p.newTeamIds,
       ...teamNamesField("PLAYER_JOINED", p.teamNames),
     };
@@ -176,6 +181,12 @@ const decoders: Record<Event["type"], EventDecoder> = {
       hourlyRateCents: p.hourlyRateCents,
       durationMinutes: p.durationMinutes,
     };
+  },
+  RULES_CHANGED: (p) => {
+    if (!isRecord(p.ruleToggles)) {
+      invalidPayload("RULES_CHANGED");
+    }
+    return { type: "RULES_CHANGED", ruleToggles: decodeRuleToggles(p.ruleToggles) };
   },
   MATCH_ENDED: (_p) => ({ type: "MATCH_ENDED" }),
 };
