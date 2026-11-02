@@ -21,6 +21,12 @@ describe("event codec", () => {
     expect(() => decodeEvent("COLORS_ADDED", { colors: "azul" })).toThrow();
   });
 
+  it("E7 CEN-11: round-trips PLAYER_CASCADED and rejects a malformed payload", () => {
+    const event = { type: "PLAYER_CASCADED", playerId: "p1", targetTeamId: "t0" } as const;
+    expect(decodeEvent("PLAYER_CASCADED", encodeEventPayload(event))).toEqual(event);
+    expect(() => decodeEvent("PLAYER_CASCADED", { playerId: "p1" })).toThrow();
+  });
+
   it("F4 CEN-9: reads a legacy MATCH_CREATED without rule toggles as all rules off", () => {
     const event = decodeEvent("MATCH_CREATED", legacyPayload);
     const state = applyEvent(null, event);

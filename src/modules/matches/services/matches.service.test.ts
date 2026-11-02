@@ -411,6 +411,52 @@ describe("MatchesService", () => {
     ).rejects.toMatchObject({ code: "PLAYER_LOCKED" });
   });
 
+  it("E7 CEN-1/CEN-10: cascade pushes a queued player into the first team and undo restores everything", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames: [...playerNames, "Eva"] });
+    const started = asView(await service.execute(created.code, created.version, { type: "start" }));
+    const queued = started.queue[0];
+    const firstTeam = started.teams[0];
+    if (queued === undefined || firstTeam === undefined) {
+      throw new Error("fixture is missing players");
+    }
+
+    const cascaded = asView(
+      await service.execute(started.code, started.version, {
+        type: "cascade",
+        playerId: queued.id,
+        targetTeamId: firstTeam.id,
+      }),
+    );
+
+    expect(cascaded.teams[0]?.players.some((player) => player.id === queued.id)).toBe(true);
+    expect(cascaded.teams.map((team) => team.players.length)).toEqual([2, 2]);
+    expect(cascaded.queue).toHaveLength(1);
+    expect(cascaded.canUndo).toBe(true);
+
+    const undone = await service.undo(cascaded.code, cascaded.version);
+    expect(undone.teams).toEqual(started.teams);
+    expect(undone.queue).toEqual(started.queue);
+  });
+
+  it("E7 CEN-9: cascade into the player's own team is rejected", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+    const team = created.teams[0];
+    const player = team?.players[0];
+    if (team === undefined || player === undefined) {
+      throw new Error("fixture is missing players");
+    }
+
+    await expect(
+      service.execute(created.code, created.version, {
+        type: "cascade",
+        playerId: player.id,
+        targetTeamId: team.id,
+      }),
+    ).rejects.toMatchObject({ code: "CASCADE_NOT_ALLOWED" });
+  });
+
   it("CEN-13: start moves DRAFT to ACTIVE with at least 2 teams", async () => {
     const { service } = makeService();
     const created = await service.create({ config, playerNames });

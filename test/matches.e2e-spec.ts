@@ -85,6 +85,35 @@ describe("Matches API (e2e)", () => {
     expect(response.status).toBe(400);
   });
 
+  it("E7: POST /cascade moves a queued player into a team and rejects the player's own team", async () => {
+    const created = viewOf(
+      await request(httpServerOf(app))
+        .post("/api/matches")
+        .send({ ...createBody, playerNames: [...createBody.playerNames, "Eva"] }),
+    );
+    const queued = created.queue[0];
+    const target = created.teams[1];
+    if (queued === undefined || target === undefined) {
+      throw new Error("fixture is missing players");
+    }
+
+    const response = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/cascade`)
+      .set("If-Match", String(created.version))
+      .send({ playerId: queued.id, targetTeamId: target.id });
+    const cascaded = viewOf(response);
+    expect(response.status).toBe(200);
+    expect(cascaded.teams[1]?.players.some((player) => player.id === queued.id)).toBe(true);
+    expect(cascaded.queue).toHaveLength(1);
+
+    const rejected = await request(httpServerOf(app))
+      .post(`/api/matches/${created.code}/cascade`)
+      .set("If-Match", String(cascaded.version))
+      .send({ playerId: queued.id, targetTeamId: target.id });
+    expect(rejected.status).toBe(422);
+    expect(rejected.body).toMatchObject({ code: "CASCADE_NOT_ALLOWED" });
+  });
+
   it("CEN-6: create -> reshuffle -> swap -> start -> GET reflects each step", async () => {
     const created = viewOf(await request(httpServerOf(app)).post("/api/matches").send(createBody));
     const code = created.code;

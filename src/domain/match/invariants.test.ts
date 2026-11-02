@@ -154,10 +154,10 @@ function idFactory(prefix: string): () => string {
   return () => `${prefix}${n++}`;
 }
 
-type ActiveOption = "swap" | "win" | "draw" | "join" | "leave" | "changeTeamSize";
+type ActiveOption = "swap" | "cascade" | "win" | "draw" | "join" | "leave" | "changeTeamSize";
 
 function activeOptions(state: MatchState): ActiveOption[] {
-  const options: ActiveOption[] = ["swap", "win", "draw", "changeTeamSize"];
+  const options: ActiveOption[] = ["swap", "cascade", "win", "draw", "changeTeamSize"];
   if (state.queue.length + 1 < state.config.teamSize) {
     options.push("join");
   }
@@ -190,6 +190,12 @@ function pickCommand(state: MatchState, rng: () => number): Command {
       const b = pickPlayer(state, rng);
       return { type: "swap", playerAId: a.id, playerBId: b.id };
     }
+    case "cascade":
+      return {
+        type: "cascade",
+        playerId: pickPlayer(state, rng).id,
+        targetTeamId: pick(state.teams, rng).id,
+      };
     case "win": {
       const [first, second] = state.teams;
       if (first === undefined || second === undefined) {
@@ -251,7 +257,10 @@ describe("CEN-28 (S3) / CEN-14 (S4): property — 500 valid random commands neve
       try {
         result = decide(state, command, ctx);
       } catch (error) {
-        if (error instanceof DomainError && error.code === "TEAM_SIZE_NOT_ALLOWED") {
+        if (
+          error instanceof DomainError &&
+          (error.code === "TEAM_SIZE_NOT_ALLOWED" || error.code === "CASCADE_NOT_ALLOWED")
+        ) {
           continue;
         }
         throw error;

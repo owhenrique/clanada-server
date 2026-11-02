@@ -32,6 +32,7 @@ import { LoserTeamDto } from "../dto/loser-team.dto";
 import { RuleTogglesDto } from "../dto/rule-toggles.dto";
 import { SetSplitPlayerDto } from "../dto/set-split-player.dto";
 import { SwapPlayersDto } from "../dto/swap-players.dto";
+import { CascadePlayerDto } from "../dto/cascade-player.dto";
 import { GameView } from "../services/game-view";
 import { MatchView, PenaltiesRequiredView } from "../services/match-view";
 import { SplitView } from "../services/split-view";
@@ -139,6 +140,22 @@ export class MatchesController {
       type: "swap",
       playerAId: dto.playerAId,
       playerBId: dto.playerBId,
+    });
+  }
+
+  @Post(":code/cascade")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  cascade(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: CascadePlayerDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, {
+      type: "cascade",
+      playerId: dto.playerId,
+      targetTeamId: dto.targetTeamId,
     });
   }
 
