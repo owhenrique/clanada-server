@@ -188,6 +188,12 @@ const decoders: Record<Event["type"], EventDecoder> = {
     }
     return { type: "RULES_CHANGED", ruleToggles: decodeRuleToggles(p.ruleToggles) };
   },
+  COLORS_ADDED: (p) => {
+    if (!isStringArray(p.colors)) {
+      invalidPayload("COLORS_ADDED");
+    }
+    return { type: "COLORS_ADDED", colors: p.colors };
+  },
   MATCH_ENDED: (_p) => ({ type: "MATCH_ENDED" }),
 };
 

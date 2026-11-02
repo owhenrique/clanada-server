@@ -200,6 +200,57 @@
         ]
       }
     },
+    "/api/matches/{code}/colors": {
+      "post": {
+        "operationId": "MatchesController_addColors",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddColorsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchView"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit por IP excedido ou TOO_MANY_LOOKUPS."
+          }
+        },
+        "tags": [
+          "matches"
+        ]
+      }
+    },
     "/api/matches/{code}/split/players/{playerId}": {
       "put": {
         "operationId": "MatchesController_setSplitPlayer",
@@ -1515,6 +1566,34 @@
         "required": [
           "hourlyRateCents",
           "durationMinutes"
+        ]
+      },
+      "AddColorsDto": {
+        "type": "object",
+        "properties": {
+          "colors": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "verde",
+                "vermelho",
+                "azul",
+                "amarelo",
+                "laranja",
+                "preto",
+                "branco",
+                "rosa",
+                "roxo",
+                "cinza"
+              ]
+            }
+          }
+        },
+        "required": [
+          "colors"
         ]
       },
       "SetSplitPlayerDto": {

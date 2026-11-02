@@ -2436,5 +2436,43 @@ describe("MatchesService draw rule (E5)", () => {
     const undone = await service.undo(drawn.code, drawn.version);
     expect(undone.teams).toEqual(changed.teams);
     expect(undone.config.ruleToggles.drawKeepsVeteran).toBe(true);
+});
+
+describe("MatchesService add colors during the match", () => {
+  it("E4: gives the new color to the first team without a vest and undo restores it", async () => {
+    const { service } = makeService();
+    const created = await service.create({
+      config,
+      playerNames: ["a", "b", "c", "d", "e", "f", "g", "h"],
+    });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    expect(started.teams.map((team) => team.color)).toEqual(["verde", "vermelho", null, null]);
+
+    const added = asView(
+      await service.execute(created.code, started.version, {
+        type: "addColors",
+        colors: ["azul"],
+      }),
+    );
+    expect(added.config.colors).toEqual(["verde", "vermelho", "azul"]);
+    expect(added.teams.map((team) => team.color)).toEqual(["verde", "vermelho", "azul", null]);
+    expect(added.canUndo).toBe(true);
+
+    const undone = await service.undo(created.code, added.version);
+    expect(undone.config.colors).toEqual(["verde", "vermelho"]);
+    expect(undone.teams.map((team) => team.color)).toEqual(["verde", "vermelho", null, null]);
+  });
+
+  it("E4: rejects a color already in the match", async () => {
+    const { service } = makeService();
+    const created = await service.create({ config, playerNames });
+    const started = asView(
+      await service.execute(created.code, created.version, { type: "start" }),
+    );
+    await expect(
+      service.execute(created.code, started.version, { type: "addColors", colors: ["verde"] }),
+    ).rejects.toMatchObject({ code: "COLORS_INVALID" });
   });
 });

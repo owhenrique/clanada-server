@@ -15,6 +15,12 @@ describe("event codec", () => {
     expect(() => decodeEvent("SPLIT_ENABLED", { hourlyRateCents: "x" })).toThrow();
   });
 
+  it("E4: round-trips COLORS_ADDED", () => {
+    const event: Event = { type: "COLORS_ADDED", colors: ["azul", "rosa"] };
+    expect(decodeEvent("COLORS_ADDED", encodeEventPayload(event))).toEqual(event);
+    expect(() => decodeEvent("COLORS_ADDED", { colors: "azul" })).toThrow();
+  });
+
   it("F4 CEN-9: reads a legacy MATCH_CREATED without rule toggles as all rules off", () => {
     const event = decodeEvent("MATCH_CREATED", legacyPayload);
     const state = applyEvent(null, event);

@@ -22,6 +22,7 @@ import {
   getSchemaPath,
 } from "@nestjs/swagger";
 import { IfMatch } from "../../../shared/http/if-match.decorator";
+import { AddColorsDto } from "../dto/add-colors.dto";
 import { EnableSplitDto } from "../dto/enable-split.dto";
 import { ChangeTeamSizeDto } from "../dto/change-team-size.dto";
 import { CreateMatchDto } from "../dto/create-match.dto";
@@ -89,6 +90,18 @@ export class MatchesController {
       hourlyRateCents: dto.hourlyRateCents,
       durationMinutes: dto.durationMinutes,
     });
+  }
+
+  @Post(":code/colors")
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: "If-Match", required: true })
+  @ApiOkResponse({ type: MatchView })
+  addColors(
+    @Param("code") code: string,
+    @IfMatch() version: number,
+    @Body() dto: AddColorsDto,
+  ): Promise<MatchView | { penaltiesRequired: true }> {
+    return this.matchesService.execute(code, version, { type: "addColors", colors: dto.colors });
   }
 
   @Put(":code/split/players/:playerId")
