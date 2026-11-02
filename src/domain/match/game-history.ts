@@ -12,6 +12,7 @@ export type GameOutcome = "win" | "penalties" | "draw";
 export type GameTeamRecord = {
   teamId: string;
   color: string | null;
+  name: string | null;
   players: Player[];
 };
 
@@ -30,6 +31,7 @@ function toTeamRecord(team: Team): GameTeamRecord {
   return {
     teamId: team.id,
     color: team.color,
+    name: team.name ?? null,
     players: team.players.map((player) => ({ id: player.id, name: player.name })),
   };
 }

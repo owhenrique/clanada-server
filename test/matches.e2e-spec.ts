@@ -64,6 +64,7 @@ describe("Matches API (e2e)", () => {
     expect(typeof view.code).toBe("string");
     expect(view.code).toHaveLength(8);
     expect(view.teams).toHaveLength(2);
+    expect(view.teams.every((team) => typeof team.name === "string")).toBe(true);
   });
 
   it.each([
@@ -436,6 +437,10 @@ describe("Matches API (e2e)", () => {
       winnerTeamId: winnerId,
     });
     expect(games[0]?.teams.map((team) => team.teamId)).toEqual([winnerId, loserId]);
+    expect(games[0]?.teams.map((team) => team.name)).toEqual([
+      started.teams[0]?.name,
+      started.teams[1]?.name,
+    ]);
     expect(games[0]?.teams[0]?.players).toEqual(started.teams[0]?.players);
     expect(new Date(games[0]?.playedAt ?? "").toISOString()).toBe(games[0]?.playedAt);
   });

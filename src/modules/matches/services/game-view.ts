@@ -9,6 +9,9 @@ export class GameTeamView {
   @ApiProperty({ nullable: true, type: String })
   color!: string | null;
 
+  @ApiProperty({ nullable: true, type: String })
+  name!: string | null;
+
   @ApiProperty({ type: [PlayerView] })
   players!: PlayerView[];
 }
@@ -34,5 +37,9 @@ export class GameView {
 }
 
 export function toGameView(record: GameRecord): GameView {
-  return { ...record, playedAt: record.playedAt.toISOString() };
+  return {
+    ...record,
+    playedAt: record.playedAt.toISOString(),
+    teams: record.teams.map((team) => ({ ...team, name: team.name ?? null })),
+  };
 }
